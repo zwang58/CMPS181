@@ -42,8 +42,13 @@ RC PagedFileManager::openFile(const string &fileName, FileHandle &fileHandle)
 {
 	if(fileHandle.openedFile == NULL){
     
+		struct stat fileInfo;
+		if(stat(fileName.c_str(), &fileInfo) != 0) return -1;
+		
 		fileHandle.openedFile = fopen(fileName.c_str(), "rb+");
 		if(fileHandle.openedFile == NULL) return -1;
+		
+		fileHandle.fileSize = fileInfo.st_size;
 		return 0;
 		
 	}else return -1;
@@ -66,17 +71,30 @@ FileHandle::FileHandle()
 	writePageCounter = 0;
 	appendPageCounter = 0;
 	currentFile = NULL;
+	fileSize = 0;
 }
 
 
 FileHandle::~FileHandle()
 {
+	if(currentFile == NULL) return;
+    
+    fflush(currentFile);
+    fclose(currentFile);
+    currentFile = NULL;
 }
 
 
 RC FileHandle::readPage(PageNum pageNum, void *data)
 {
-    return -1;
+    unsigned long totalPages = fileSize/PAGE_SIZE;
+    if(pageNum >= totalPages) return -1;
+
+    if(fseek(currentFile, pageNum * PAGE_SIZE, SEEK_SET) != 0) return -1;
+    if(fread(data, sizeof(char), PAGE_SIZE, currentFile) != PAGE_SIZE) return -1;
+    readPageCounter += 1;
+
+    return 0;
 }
 
 
