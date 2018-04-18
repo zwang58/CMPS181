@@ -23,6 +23,10 @@ PagedFileManager::~PagedFileManager()
 
 RC PagedFileManager::createFile(const string &fileName)
 {
+	//return -1 if fileName file already exists
+	struct stat bf;
+    if(stat(fileName.c_str(), &bf) == 0) return -1;
+	
     FILE* file = fopen(fileName.c_str(), "w");
     if(file == NULL) return -1;
 
@@ -42,13 +46,14 @@ RC PagedFileManager::openFile(const string &fileName, FileHandle &fileHandle)
 {
 	if(fileHandle.currentFile == NULL){
     
-		struct stat fileInfo;
-		if(stat(fileName.c_str(), &fileInfo) != 0) return -1;
+		//return -1 if fileName file doesn't exist
+		struct stat bf;
+		if(stat(fileName.c_str(), &bf) != 0) return -1;
 		
 		fileHandle.currentFile = fopen(fileName.c_str(), "rb+");
 		if(fileHandle.currentFile == NULL) return -1;
 		
-		fileHandle.fileSize = fileInfo.st_size;
+		fileHandle.fileSize = bf.st_size;		
 		return 0;
 		
 	}else return -1;
@@ -105,7 +110,8 @@ RC FileHandle::writePage(PageNum pageNum, const void *data)
     
     if(fseek(currentFile, pageNum * PAGE_SIZE, SEEK_SET) != 0) return -1;
     if(fwrite(data, sizeof(char), PAGE_SIZE, currentFile) != PAGE_SIZE) return -1;
-    
+    if(fflush(currentFile) != 0) return -1;
+	
     writePageCounter += 1;
     
     return 0;
@@ -116,16 +122,17 @@ RC FileHandle::appendPage(const void *data)
 {
     if(fseek(currentFile, 0, SEEK_END) != 0) return -1;
     if(fwrite(data, sizeof(char), PAGE_SIZE, currentFile) != PAGE_SIZE) return -1;
-
+	if(fflush(currentFile) != 0) return -1;
+	
     appendPageCounter += 1;
+	fileSize += PAGE_SIZE;
     
     return 0;
 }
 
 
 unsigned FileHandle::getNumberOfPages()
-{
-    
+{	
     return fileSize/PAGE_SIZE;;
 }
 
