@@ -100,23 +100,44 @@ RC FileHandle::readPage(PageNum pageNum, void *data)
 
 RC FileHandle::writePage(PageNum pageNum, const void *data)
 {
-    return -1;
+    unsigned long totalPages = fileSize/PAGE_SIZE;
+    if(pageNum >= totalPages) return -1;
+    
+    if(fseek(currentFile, pageNum * PAGE_SIZE, SEEK_SET) != 0) return -1;
+    if(fwrite(data, sizeof(char), PAGE_SIZE, currentFile) != PAGE_SIZE) return -1;
+    
+    writePageCounter += 1;
+    
+    return 0;
 }
 
 
 RC FileHandle::appendPage(const void *data)
 {
-    return -1;
+
+    unsigned long totalPages = fileSize/PAGE_SIZE;
+    if(pageNum >= totalPages) return -1;
+
+    if(fseek(currentFile, 0, SEEK_END) != 0) return -1;
+    if(fwrite(data, sizeof(char), PAGE_SIZE, currentFile) != PAGE_SIZE) return -1;
+
+    appendPageCounter += 1;
+    
+    return 0;
 }
 
 
 unsigned FileHandle::getNumberOfPages()
 {
-    return -1;
+    
+    return fileSize/PAGE_SIZE;;
 }
 
 
 RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount)
 {
+    readPageCount = readPageCounter;
+    writePageCount = writePageCounter;
+    appendPageCount = appendPageCounter;
 	return -1;
 }
