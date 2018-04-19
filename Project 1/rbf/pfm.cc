@@ -25,7 +25,7 @@ RC PagedFileManager::createFile(const string &fileName)
 {
 	//return -1 if fileName file already exists
 	struct stat bf;
-    if(stat(fileName.c_str(), &bf) == 0) return -1;
+	if(stat(fileName.c_str(), &bf) == 0) return -1;
 	
     FILE* file = fopen(fileName.c_str(), "w");
     if(file == NULL) return -1;
@@ -37,6 +37,8 @@ RC PagedFileManager::createFile(const string &fileName)
 
 RC PagedFileManager::destroyFile(const string &fileName)
 {
+	struct stat bf;
+    if(stat(fileName.c_str(), &bf) != 0) return -1;
 	if(remove(fileName.c_str()) != 0) return -1;
     return 0;
 }
