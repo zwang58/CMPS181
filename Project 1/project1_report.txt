@@ -8,8 +8,16 @@ Other Team Members: Eduardo Chavez, Gaoyang Wang
 
 2. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that you haven't implemented this feature.
-- Describe how you store a VarChar field.
 
+We divided each record into these parts:
+{Number of Attributes, Null Indicators, Directory of offsets for closing off each attribute, Attribute values}
+O(1) reads are achieved because the system knows where each field ends, so every lookup operation knowing the order of attributes can jump
+straight to the record offset.
+
+- Describe how you store a VarChar field.
+First 4 bytes are read as Int n to determine the length of the varchar field.
+The following n bytes are extracted and appended onto the record.
+After the record forming completes, it seeks the final page or the first page with enough space and stores it.
 
 3. Page Format
 - Show your page format design
