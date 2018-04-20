@@ -155,5 +155,50 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
 }
 
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
-    return -1;
+	
+	//set up number of fields and offset where data starts
+    uint16_t fieldCount = recordDescriptor.size();
+    uint16_t offset = ceil(fieldCount/8.0);
+    const char* pointer = (char*)data;
+    
+	//for each field, check for its attribute type and intepret values accordingly
+    for (int i = 0; i < fieldCount; i++) {        
+        char null_flag = *(pointer + (char)(i/8));
+		
+		//check if the null bit is 1, proceed if not null
+        if (!(null_flag & (1<<(7-i%8)))) {
+            
+			switch(recordDescriptor[i].type){
+				case TypeVarChar:
+					int attlen;
+					memcpy(&attlen, &pointer[offset], sizeof(int));
+					char content[attlen + 1];
+					memcpy(content, &pointer[offset + sizeof(int)], attlen );
+					content[attlen] = 0;
+					cout << recordDescriptor[i].name << ": " << content << "\t";
+					offset += (4 + attlen);
+           
+				case TypeInt:
+					int num;
+                    memcpy(&num, &pointer[offset], sizeof(int));
+                    cout << recordDescriptor[i].name << ": " << num << "\t";
+                    offset += sizeof(int); 
+				
+				case TypeReal:
+					float num;
+                    memcpy(&num, &pointer[offset], sizeof(float));
+                    cout << recordDescriptor[i].name << ": " << num << "\t";
+                    offset += sizeof(float); 
+					
+				default: 
+					cout <<"Incorrect field type" << endl;
+				
+        } else {	
+			//if null bit is 1 print NULL
+            cout << recordDescriptor[i].name << ": NULL\t";            
+        }
+    }    
+    cout << endl; 
+    return 0;
+}
 }
