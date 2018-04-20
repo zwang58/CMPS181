@@ -167,8 +167,7 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 		
 		//check if the null bit is 1, proceed if not null
         if (!(null_flag & (1<<(7-i%8)))) {
-            
-			switch(recordDescriptor[i].type){
+            switch(recordDescriptor[i].type){
 				case TypeVarChar:
 					int attlen;
 					memcpy(&attlen, &pointer[offset], sizeof(int));
