@@ -167,7 +167,9 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 		
 		//check if the null bit is 1, proceed if not null
         if (!(null_flag & (1<<(7-i%8)))) {
+			
             switch(recordDescriptor[i].type){
+				
 				case TypeVarChar:
 					int attlen;
 					memcpy(&attlen, &pointer[offset], sizeof(int));
@@ -176,21 +178,26 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 					content[attlen] = 0;
 					cout << recordDescriptor[i].name << ": " << content << "\t";
 					offset += (4 + attlen);
+					break;
            
 				case TypeInt:
 					int num;
                     memcpy(&num, &pointer[offset], sizeof(int));
                     cout << recordDescriptor[i].name << ": " << num << "\t";
                     offset += sizeof(int); 
+					break;
 				
 				case TypeReal:
 					float num;
                     memcpy(&num, &pointer[offset], sizeof(float));
                     cout << recordDescriptor[i].name << ": " << num << "\t";
                     offset += sizeof(float); 
+					break;
 					
 				default: 
 					cout <<"Incorrect field type" << endl;
+					break;
+			}
 				
         } else {	
 			//if null bit is 1 print NULL
