@@ -157,7 +157,67 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 }
 
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
-    return -1;
+    char *page = (char*) calloc(PAGE_SIZE, sizeof(char));
+    if(fileHandle.readPage(rid.pageNum, page) != 0) return -1;
+
+    uint16_t recordCount;
+    uint16_t record;
+    uint16_t fieldCount;
+    uint16_t null_flag;
+    uint16_t dir;
+    uint16_t curr_offset;
+    uint16_t prev_offset;
+
+    memcpy(&recordCount, &page[PAGE_SIZE - 4], sizeof(uint16_t));
+    if(recordCount < rid.slotNum) return -1;
+
+    memcpy(&record, &page[PAGE_SIZE - 4 - (4 * rid.slotNum)], sizeof(uint16_t));
+
+    memcpy(&fieldCount, &page[record], sizeof(uint16_t));
+    if(fieldCount != recordDescriptor.size()) return -1;
+
+    null_flag = ceil(fieldCount / 8.0);
+    memcpy(data, &page[record + sizeof(uint16_t)], null_flag);
+
+    dir = record + sizeof(uint16_t) + null_flag;
+
+    uint16_t i;
+    char target;
+    int attribute_len;
+    char *data_copy = (char *)data + null_flag;
+    offset = sizeof(uint16_t) + null_flag + fieldCount * sizeof(uint16_t);
+    for (i = 0; i < fieldCount; i++) {
+        
+        target = *((char *)data + (char)(i/8));
+        prev_offset = offset;
+        
+        if(!(target & (1<<(7 - i % 8)))) {
+            memcpy(&curr_offset, &page[directory + i * sizeof(uint16_t)], sizeof(uint16_t));
+            attribute_len = curr_offset - prev_offset;
+            
+            switch(recordDescriptor[i].type) {
+                
+                case TypeVarChar:{
+                    memcpy(&data_copy[0], &attribute_len, sizeof(int));
+                    memcpy(&data_copy[4], &page[record + prev_offset], attribute_len);
+                    data_copy += (4 + attribute_len);
+                    break;
+                }
+
+                case TypeReal:
+                case TypeInt:{
+                    memcpy(&data_copy[0], &page[record + prev_offset], sizeof(int));
+                    data_copy += sizeof(int);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    free(page);
+
+    return 0;
 }
 
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
