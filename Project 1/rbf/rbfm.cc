@@ -56,33 +56,39 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     memcpy(record + sizeof(uint16_t), &data_c[0], in_offset);
     
     for (int i = 0; i < count; ++i) {
-        char target = *(data_c + (char)(i/8));
-        if (!(target & (1<<(7-i%8)))) {
-            if (recordDescriptor[i].type == TypeVarChar) {
-                int attlen;
-                memcpy(&attlen, &data_c[in_offset], sizeof(int));     // Read length
-                memcpy(record + data_offset, &data_c[in_offset + 4], attlen);     // Write data
-                data_offset += attlen;
-                in_offset += (4 + attlen);
-                memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));     // Write "dir entry"          
-            } 
-            
-            else {
-                if (recordDescriptor[i].type == TypeInt) {
-                    memcpy(record + data_offset, &data_c[in_offset], sizeof(int));
+        char null_flag = *(data_c + (char)(i/8));
+		//if null bit is off
+        if (!(null_flag & (1<<(7-i%8)))) {
+			
+			switch(recordDescriptor[i].type){
+				case TypeVarChar:{
+					int valueLength;
+					memcpy(&valueLength, &data_c[in_offset], sizeof(int));     // Read length
+					memcpy(record + data_offset, &data_c[in_offset + 4], valueLength);     // Write data
+					data_offset += valueLength;
+					in_offset += (4 + valueLength);
+					memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));     // Write "dir entry"
+					break;
+				}
+					
+				case TypeInt:{
+					memcpy(record + data_offset, &data_c[in_offset], sizeof(int));
                     in_offset += sizeof(int);
                     data_offset += sizeof(int); 
-                    memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));  
-                } 
-                
-                if (recordDescriptor[i].type == TypeReal) {
-                    memcpy(record + data_offset, &data_c[in_offset], sizeof(float));
+                    memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));
+					break;
+				}
+					
+				case TypeReal:{
+					memcpy(record + data_offset, &data_c[in_offset], sizeof(float));
                     in_offset += sizeof(float);
                     data_offset += sizeof(float); 
-                    memcpy(record + dir_offset, &data_offset, sizeof(uint16_t)); 
-                }
-            }
-            
+                    memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));
+					break;
+				}
+					
+				default: break;
+			}            
         } 
         
         else {
@@ -167,38 +173,39 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 		
 		//check if the null bit is 1, proceed if not null
         if (!(null_flag & (1<<(7-i%8)))) {
-			
             switch(recordDescriptor[i].type){
 				
-				case TypeVarChar:
-					int attlen;
-					memcpy(&attlen, &pointer[offset], sizeof(int));
-					char content[attlen + 1];
-					memcpy(content, &pointer[offset + sizeof(int)], attlen );
-					content[attlen] = 0;
-					cout << recordDescriptor[i].name << ": " << content << "\t";
-					offset += (4 + attlen);
+				case TypeVarChar:{
+					int valueLength;
+					memcpy(&valueLength, &pointer[offset], sizeof(int));
+					char value[valueLength + 1];
+					memcpy(value, &pointer[offset + sizeof(int)], valueLength );
+					value[valueLength] = 0;
+					cout << recordDescriptor[i].name << ": " << value << "\t";
+					offset += (4 + valueLength);
 					break;
+				}
            
-				case TypeInt:
+				case TypeInt:{
 					int num;
                     memcpy(&num, &pointer[offset], sizeof(int));
                     cout << recordDescriptor[i].name << ": " << num << "\t";
                     offset += sizeof(int); 
 					break;
+				}
 				
-				case TypeReal:
+				case TypeReal:{
 					float num;
                     memcpy(&num, &pointer[offset], sizeof(float));
                     cout << recordDescriptor[i].name << ": " << num << "\t";
                     offset += sizeof(float); 
 					break;
+				}
 					
 				default: 
 					cout <<"Incorrect field type" << endl;
 					break;
-			}
-				
+			}		
         } else {	
 			//if null bit is 1 print NULL
             cout << recordDescriptor[i].name << ": NULL\t";            
@@ -207,4 +214,4 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     cout << endl; 
     return 0;
 }
-}
+
