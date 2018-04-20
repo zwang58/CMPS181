@@ -22,8 +22,23 @@ After the record forming completes, it seeks the final page or the first page wi
 3. Page Format
 - Show your page format design
 
+A graphic representation of a page filled with several records looks like the following:
+
+[record1][record2][record3]...[    empty space    ]...[record 2 offset, record 2 length][record 1 offset, record 1 length] ->
+
+<- [record count][vacancy offset]
+
+Metadata about records are stored at the end of each page for easy access.
+Each(record offset, record length) pair takes 4 bytes.
+Record count and vacancy offset each takes 2 bytes. Vacancy offset directs the pointer directlt to where a record can potentially be placed if vacancy is large enough.
+
 
 4. Implementation Detail
 - Other implementation details goes here.
+
+To insert a new record, the file manager first attempts to concatenate it at the last page of the file;
+if not enough room is available, it loops through all pages from the first one and stops when a page with enough vacancy is found.
+Then the record is appended to the end of the records, updating its rid's pageNum to the current pageNum, and slot number to the index of the new record. 
+Given an RID, the corresponding record can be read by finding the page with the correct pageNum, then going backwards from end of page to retrieve the (record offset, record length) tuple for the desired record, and finally reading at the record offset.
 
 
