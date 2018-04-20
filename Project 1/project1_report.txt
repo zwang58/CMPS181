@@ -24,9 +24,8 @@ After the record forming completes, it seeks the final page or the first page wi
 
 A graphic representation of a page filled with several records looks like the following:
 
-[record1][record2][record3]...[    empty space    ]...[record 2 offset, record 2 length][record 1 offset, record 1 length] ->
-
-<- [record count][vacancy offset]
+[record1][record2][record3]...[    empty space    ]...[record 2 offset, record 2 length]->
+<-[record 1 offset, record 1 length][record count][vacancy offset]
 
 Metadata about records are stored at the end of each page for easy access.
 Each(record offset, record length) pair takes 4 bytes.

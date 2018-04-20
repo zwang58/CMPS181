@@ -40,31 +40,31 @@ RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
 }
 
 RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid) {
-    const char* data_c = (char*)data;
-    uint16_t count = recordDescriptor.size();
+    const char* pointer = (char*)data;
+    uint16_t fieldCount = recordDescriptor.size();
     uint16_t in_offset = ceil(recordDescriptor.size()/8.0);
-    uint16_t dir_offset = sizeof(uint16_t) + ceil(recordDescriptor.size()/8.0);
-    uint16_t data_offset = dir_offset + sizeof(uint16_t) * count;
+    uint16_t dir_offset = sizeof(uint16_t) + in_offset;
+    uint16_t data_offset = dir_offset + sizeof(uint16_t) * fieldCount;
     uint16_t max_size = data_offset;
     
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < fieldCount; ++i) {
         max_size += recordDescriptor[i].length;
     }
     
     char *record = (char*)calloc(max_size, sizeof(char));
-    memcpy(record, &count, sizeof(uint16_t));
-    memcpy(record + sizeof(uint16_t), &data_c[0], in_offset);
+    memcpy(record, &fieldCount, sizeof(uint16_t));
+    memcpy(record + sizeof(uint16_t), &pointer[0], in_offset);
     
-    for (int i = 0; i < count; ++i) {
-        char null_flag = *(data_c + (char)(i/8));
+    for (int i = 0; i < fieldCount; ++i) {
+        char null_flag = *(pointer + (char)(i/8));
 		//if null bit is off
         if (!(null_flag & (1<<(7-i%8)))) {
 			
 			switch(recordDescriptor[i].type){
 				case TypeVarChar:{
 					int valueLength;
-					memcpy(&valueLength, &data_c[in_offset], sizeof(int));     // Read length
-					memcpy(record + data_offset, &data_c[in_offset + 4], valueLength);     // Write data
+					memcpy(&valueLength, &pointer[in_offset], sizeof(int));     // Read length
+					memcpy(record + data_offset, &pointer[in_offset + 4], valueLength);     // Write data
 					data_offset += valueLength;
 					in_offset += (4 + valueLength);
 					memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));     // Write "dir entry"
@@ -72,7 +72,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 				}
 					
 				case TypeInt:{
-					memcpy(record + data_offset, &data_c[in_offset], sizeof(int));
+					memcpy(record + data_offset, &pointer[in_offset], sizeof(int));
                     in_offset += sizeof(int);
                     data_offset += sizeof(int); 
                     memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));
@@ -80,7 +80,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 				}
 					
 				case TypeReal:{
-					memcpy(record + data_offset, &data_c[in_offset], sizeof(float));
+					memcpy(record + data_offset, &pointer[in_offset], sizeof(float));
                     in_offset += sizeof(float);
                     data_offset += sizeof(float); 
                     memcpy(record + dir_offset, &data_offset, sizeof(uint16_t));
@@ -98,19 +98,19 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     } 
      
     char *page = (char*)calloc(PAGE_SIZE, sizeof(char)); 
-    uint16_t pageCount = fileHandle.getNumberOfPages(); 
-    uint16_t currPage = (pageCount>0) ? pageCount-1 : 0;
+    uint16_t pagefieldCount = fileHandle.getNumberOfPages(); 
+    uint16_t currPage = (pagefieldCount>0) ? pagefieldCount-1 : 0;
     uint16_t freeSpace;
-    uint16_t recordCount;  
+    uint16_t recordfieldCount;  
     
     char first = 1;
-    while (currPage < pageCount) {        
+    while (currPage < pagefieldCount) {        
         if (fileHandle.readPage(currPage, page) != 0)
             return -1;
-        memcpy(&recordCount, &page[PAGE_SIZE - 4], sizeof(uint16_t));
+        memcpy(&recordfieldCount, &page[PAGE_SIZE - 4], sizeof(uint16_t));
         memcpy(&freeSpace, &page[PAGE_SIZE - 2], sizeof(uint16_t));  
 
-        if (data_offset + 4 <= PAGE_SIZE - (freeSpace + 4 * recordCount + 4)) {
+        if (data_offset + 4 <= PAGE_SIZE - (freeSpace + 4 * recordfieldCount + 4)) {
             break;
         }
         if (!first) {
@@ -123,24 +123,24 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     }    
     
     // When we have no enough space on pages
-    if (currPage == pageCount) {
+    if (currPage == pagefieldCount) {
         memset(page, 0, PAGE_SIZE); 
         freeSpace = 0;
-        recordCount = 0;
+        recordfieldCount = 0;
     }
-    recordCount++;
+    recordfieldCount++;
 
     memcpy(page + freeSpace, record, data_offset);     // Actual records
    
-    int page_dir = PAGE_SIZE - (4 * recordCount + 4);
+    int page_dir = PAGE_SIZE - (4 * recordfieldCount + 4);
     memcpy(page + page_dir    , &freeSpace, sizeof(uint16_t));
     memcpy(page + page_dir + 2, &data_offset, sizeof(uint16_t));
     freeSpace += data_offset;  
-    memcpy(page + PAGE_SIZE - 4, &recordCount, sizeof(uint16_t));
+    memcpy(page + PAGE_SIZE - 4, &recordfieldCount, sizeof(uint16_t));
     memcpy(page + PAGE_SIZE - 2, &freeSpace, sizeof(uint16_t));    
 
     int append_rc;
-    if (currPage == pageCount) {
+    if (currPage == pagefieldCount) {
         append_rc = fileHandle.appendPage(page);
     } 
     else {
@@ -149,7 +149,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     }
     if (append_rc != 0) return -1;
     
-    rid.slotNum = recordCount;
+    rid.slotNum = recordfieldCount;
     rid.pageNum = currPage;
     free(record);
     free(page);
@@ -160,23 +160,23 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     char *page = (char*) calloc(PAGE_SIZE, sizeof(char));
     if(fileHandle.readPage(rid.pageNum, page) != 0) return -1;
 
-    uint16_t recordCount;
+    uint16_t recordfieldCount;
     uint16_t record;
-    uint16_t fieldCount;
+    uint16_t fieldfieldCount;
     uint16_t null_flag;
     uint16_t dir;
     uint16_t curr_offset;
     uint16_t prev_offset;
 
-    memcpy(&recordCount, &page[PAGE_SIZE - 4], sizeof(uint16_t));
-    if(recordCount < rid.slotNum) return -1;
+    memcpy(&recordfieldCount, &page[PAGE_SIZE - 4], sizeof(uint16_t));
+    if(recordfieldCount < rid.slotNum) return -1;
 
     memcpy(&record, &page[PAGE_SIZE - 4 - (4 * rid.slotNum)], sizeof(uint16_t));
 
-    memcpy(&fieldCount, &page[record], sizeof(uint16_t));
-    if(fieldCount != recordDescriptor.size()) return -1;
+    memcpy(&fieldfieldCount, &page[record], sizeof(uint16_t));
+    if(fieldfieldCount != recordDescriptor.size()) return -1;
 
-    null_flag = ceil(fieldCount / 8.0);
+    null_flag = ceil(fieldfieldCount / 8.0);
     memcpy(data, &page[record + sizeof(uint16_t)], null_flag);
 
     dir = record + sizeof(uint16_t) + null_flag;
@@ -184,9 +184,9 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     uint16_t i;
     char target;
     int attribute_len;
-    char *data_copy = (char *)data + null_flag;
-    curr_offset = sizeof(uint16_t) + null_flag + fieldCount * sizeof(uint16_t);
-    for (i = 0; i < fieldCount; i++) {
+    char *pointeropy = (char *)data + null_flag;
+    curr_offset = sizeof(uint16_t) + null_flag + fieldfieldCount * sizeof(uint16_t);
+    for (i = 0; i < fieldfieldCount; i++) {
         
         target = *((char *)data + (char)(i/8));
         prev_offset = curr_offset;
@@ -198,16 +198,16 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
             switch(recordDescriptor[i].type) {
                 
                 case TypeVarChar:{
-                    memcpy(&data_copy[0], &attribute_len, sizeof(int));
-                    memcpy(&data_copy[4], &page[record + prev_offset], attribute_len);
-                    data_copy += (4 + attribute_len);
+                    memcpy(&pointeropy[0], &attribute_len, sizeof(int));
+                    memcpy(&pointeropy[4], &page[record + prev_offset], attribute_len);
+                    pointeropy += (4 + attribute_len);
                     break;
                 }
 
                 case TypeReal:
                 case TypeInt:{
-                    memcpy(&data_copy[0], &page[record + prev_offset], sizeof(int));
-                    data_copy += sizeof(int);
+                    memcpy(&pointeropy[0], &page[record + prev_offset], sizeof(int));
+                    pointeropy += sizeof(int);
                     break;
                 }
                 default:
@@ -223,12 +223,12 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
 	
 	//set up number of fields and offset where data starts
-    uint16_t fieldCount = recordDescriptor.size();
-    uint16_t offset = ceil(fieldCount/8.0);
+    uint16_t fieldfieldCount = recordDescriptor.size();
+    uint16_t offset = ceil(fieldfieldCount/8.0);
     const char* pointer = (char*)data;
     
 	//for each field, check for its attribute type and intepret values accordingly
-    for (int i = 0; i < fieldCount; i++) {        
+    for (int i = 0; i < fieldfieldCount; i++) {        
         char null_flag = *(pointer + (char)(i/8));
 		
 		//check if the null bit is 1, proceed if not null
