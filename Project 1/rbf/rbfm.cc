@@ -185,14 +185,14 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     char target;
     int attribute_len;
     char *data_copy = (char *)data + null_flag;
-    offset = sizeof(uint16_t) + null_flag + fieldCount * sizeof(uint16_t);
+    curr_offset = sizeof(uint16_t) + null_flag + fieldCount * sizeof(uint16_t);
     for (i = 0; i < fieldCount; i++) {
         
         target = *((char *)data + (char)(i/8));
-        prev_offset = offset;
+        prev_offset = curr_offset;
         
         if(!(target & (1<<(7 - i % 8)))) {
-            memcpy(&curr_offset, &page[directory + i * sizeof(uint16_t)], sizeof(uint16_t));
+            memcpy(&curr_offset, &page[dir + i * sizeof(uint16_t)], sizeof(uint16_t));
             attribute_len = curr_offset - prev_offset;
             
             switch(recordDescriptor[i].type) {
