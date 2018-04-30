@@ -449,3 +449,74 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
         header_offset += sizeof(ColumnOffset);
     }
 }
+
+RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid){
+    	
+	//Retrieves target page
+	void * pageData = malloc(PAGE_SIZE);
+    if (fileHandle.readPage(rid.pageNum, pageData))
+        return RBFM_READ_FAILED;
+
+    // Checks if the specific slot id exists in the page
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
+    
+    if(slotHeader.recordEntriesNumber < rid.slotNum)
+        return RBFM_SLOT_DN_EXIST;
+
+    // Gets the slot directory record entry data
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+
+    // Retrieve the actual entry data
+    getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
+	
+	//if this record is next to the freespace, just remove the record; otherwise push up the records behind it
+	if(slotHeader.freeSpaceOffset == recordEntry.offset){
+		memset(pageData + recordEntry.offset - recordEntry.length, 0, recordEntry.length);
+	
+	}else{
+		
+		//Push up the block of records and update the record entry offsets
+		int moveSize = recordEntry.offset - slotHeader.freeSpaceOffset;
+		int newOffset = slotHeader.freeSpaceOffset + recordEntry.length;
+		memmove(pageData + newOffset, pageData + slotHeader.freeSpaceOffset, moveSize);
+		
+		//wipe the new empty space
+		memset(pageData + slotHeader.freeSpaceOffset, 0, recordEntry.length);
+		
+		//increase the entry offset of every pushed-up record
+		for(int i = 0; i< slotHeader.recordEntriesNumber; i++){
+			
+			SlotDirectoryRecordEntry newRecordEntry = getSlotDirectoryRecordEntry(pageData, i);
+			if(newRecordEntry.offset < recordEntry.offset){
+				newRecordEntry.offset += recordEntry.length;
+				setSlotDirectoryRecordEntry(pageData, i, newRecordEntry);
+			}
+		}
+	}
+	
+	//if this record entry is the last one, delete it; otherwise mark it as useable(??)
+	if(rid.slotNum + 1 == slotHeader.recordEntriesNumber){
+		
+		
+		memset(pageData + sizeof(SlotDirectoryHeader) + rid.slotNum * sizeof(SlotDirectoryRecordEntry), 0, sizeof(SlotDirectoryRecordEntry));
+		slotHeader.recordEntriesNumber --;
+		
+	}else{
+		
+		
+	}
+	
+	
+	
+	slotHeader.freeSpaceOffset += recordEntry.length;
+	
+	setSlotDirectoryHeader(pageData, slotHeader);
+	
+	
+	//overwrites the old page
+	if (fileHandle.writePage(rid.pageNum, pageData))
+        return RBFM_WRITE_FAILED;
+	
+	free(pageData);
+	return SUCCESS;    
+}
