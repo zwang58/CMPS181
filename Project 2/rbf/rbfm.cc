@@ -536,3 +536,44 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
 	free(pageData);
 	return SUCCESS;    
 }
+
+RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
+
+	//Retrieves target page
+	void * pageData = malloc(PAGE_SIZE);
+    if (fileHandle.readPage(rid.pageNum, pageData))
+        return RBFM_READ_FAILED;
+
+    // Checks if the specific slot id exists in the page
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
+    
+    if(slotHeader.recordEntriesNumber < rid.slotNum)
+        return RBFM_SLOT_DN_EXIST;
+
+    // Gets the slot directory record entry data
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+	
+	//if an entry's offset is negative, this entry actually contains the forwarding
+	//address in the form of (pageNum, slotNum) instead of (length, offset).
+	//flip the sign of "offset" to get the real slotNum.
+	if (recordEntry.offset < 0){
+		
+		RID realRid;
+		realRid.pageNum = recordEntry.length;
+		realRid.slotNum = recordEntry.offset * (-1);
+		
+		return updateRecord(fileHandle, recordDescriptor, realRid);
+	}
+	
+	//Check if the record is expanding or shrinking in size
+	unsigned newRecordSize = getRecordSize(recordDescriptor, data);
+	unsigned oldRecordSize = recordEntry.length;
+	if(getPageFreeSpaceSize(pageData) >= newRecordSize - oldRecordSize){
+		
+	}
+	
+	
+	
+	
+	return SUCCESS;   
+}
