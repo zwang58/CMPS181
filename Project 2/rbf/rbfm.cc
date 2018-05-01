@@ -352,7 +352,7 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
     RecordLength len = 0;
     memcpy (&len, start, sizeof(RecordLength));
     int recordNullIndicatorSize = getNullIndicatorSize(len);
-
+ 
     // Read in the existing null indicator
     memcpy (nullIndicator, start + sizeof(RecordLength), recordNullIndicatorSize);
 
@@ -537,7 +537,42 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
 	return SUCCESS;    
 }
 
-RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
+int RecordBasedFileManager::reinsertRecord(void* page, const RID &rid, const vector<Attribute> &recordDescriptor, const void *data){
+	
+	//try to insert the record back to the given RID
+	uint32_t recordSize = getRecordSize(recordDescriptor, data);
+	SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(page);
+	SlotDirectoryRecordEntry recordEntry;
+	
+	//Ensure that slot entry is marked as usable. 
+	//Report error if slot is occupied or number of entries is smaller than slotNum
+	if(slotHeader.recordEntriesNumber > rid.slotNum){
+		
+		recordEntry = getSlotDirectoryRecordEntry(page, rid.slotNum);
+		if(recordEntry.length > 0) return 1;
+	
+	}else if (slotHeader.recordEntriesNumber < rid.slotNum){
+		return 1;
+		
+	//if recordEntriesNumber is equal to slotNum, this slot entry has just been deleted cuz it was the last one
+	//so increment recordEntriesNumber
+	}else
+		slotHeader.recordEntriesNumber ++;
+		
+	
+	recordEntry.length = recordSize;
+	recordEntry.offset = slotHeader.freeSpaceOffset - recordSize;
+	setRecordAtOffset(page, recordEntry.offset, recordDescriptor, data);
+	
+	slotHeader.freeSpaceOffset -= recordSize;
+	setSlotDirectoryRecordEntry(page, rid.slotNum, recordEntry);
+	setSlotDirectoryHeader(page, slotHeader);
+	
+	return 0;
+}
+
+
+RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
 
 	//Retrieves target page
 	void * pageData = malloc(PAGE_SIZE);
@@ -562,18 +597,53 @@ RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescripto
 		realRid.pageNum = recordEntry.length;
 		realRid.slotNum = recordEntry.offset * (-1);
 		
-		return updateRecord(fileHandle, recordDescriptor, realRid);
+		return updateRecord(fileHandle, recordDescriptor, data, realRid);
 	}
 	
 	//Check if the record is expanding or shrinking in size
-	unsigned newRecordSize = getRecordSize(recordDescriptor, data);
-	unsigned oldRecordSize = recordEntry.length;
-	if(getPageFreeSpaceSize(pageData) >= newRecordSize - oldRecordSize){
+	int newRecordSize = getRecordSize(recordDescriptor, data);
+	int oldRecordSize = recordEntry.length;
+	
+	//if the size stays the same just overwrite the record
+	if(newRecordSize == oldRecordSize){
+		
+		setRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
+
+	//if the size changes but still fits on that page, delete then reinsert with old rid;
+	}else if((int)getPageFreeSpaceSize(pageData) >= newRecordSize - oldRecordSize){
+		
+		deleteRecord(fileHandle, recordDescriptor, rid);
+		if(fileHandle.readPage(rid.pageNum, pageData))
+			return RBFM_READ_FAILED;
+		if(reinsertRecord(pageData, rid, recordDescriptor, data))
+			return RBFM_WRITE_FAILED;
+
+	//if the record wouldn't fit here, delete it and insert on another page with enough space
+	}else{
+		
+		//delete() will remove the slot entry if it's the last entry
+		//In that case restore the recordEntriesNumber since the slot entry will be added back later
+		deleteRecord(fileHandle, recordDescriptor, rid);
+		if(fileHandle.readPage(rid.pageNum, pageData))
+			return RBFM_READ_FAILED;
+		slotHeader = getSlotDirectoryHeader(pageData);
+		if(slotHeader.recordEntriesNumber == rid.slotNum){
+			slotHeader.recordEntriesNumber++;
+			setSlotDirectoryHeader(pageData, slotHeader);
+		}
+		
+		RID newRid;
+		insertRecord(fileHandle, recordDescriptor, data, newRid);
+		
+		//store the returned RID inside slot entry as forwarding address
+		recordEntry.length = newRid.pageNum;
+		recordEntry.offset = newRid.slotNum * (-1);
+		setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
 		
 	}
 	
-	
-	
-	
+	//overwrites the old page
+	if (fileHandle.writePage(rid.pageNum, pageData))
+        return RBFM_WRITE_FAILED;
 	return SUCCESS;   
 }
