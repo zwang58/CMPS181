@@ -465,23 +465,26 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
 
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
-
-    // Retrieve the actual entry data
-    getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
+	
+	//if an entry's offset is negative, this entry actually contains the forwarding
+	//address in the form of (pageNum, slotNum) instead of (length, offset).
+	//flip the sign of "offset" to get the real slotNum.
+	if (recordEntry.offset < 0){
+		
+		RID realRid;
+		realRid.pageNum = recordEntry.length;
+		realRid.slotNum = recordEntry.offset * (-1);
+		
+		return deleteRecord(fileHandle, recordDescriptor, realRid);
+	}
 	
 	//if this record is next to the freespace, just remove the record; otherwise push up the records behind it
-	if(slotHeader.freeSpaceOffset == recordEntry.offset){
-		memset(pageData + recordEntry.offset - recordEntry.length, 0, recordEntry.length);
-	
-	}else{
+	if(slotHeader.freeSpaceOffset < recordEntry.offset){
 		
 		//Push up the block of records and update the record entry offsets
 		int moveSize = recordEntry.offset - slotHeader.freeSpaceOffset;
 		int newOffset = slotHeader.freeSpaceOffset + recordEntry.length;
-		memmove(pageData + newOffset, pageData + slotHeader.freeSpaceOffset, moveSize);
-		
-		//wipe the new empty space
-		memset(pageData + slotHeader.freeSpaceOffset, 0, recordEntry.length);
+		memmove((char*)pageData + newOffset, (char*)pageData + slotHeader.freeSpaceOffset, moveSize);
 		
 		//increase the entry offset of every pushed-up record
 		for(int i = 0; i< slotHeader.recordEntriesNumber; i++){
@@ -494,24 +497,22 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
 		}
 	}
 	
-	//if this record entry is the last one, delete it; otherwise mark it as useable(??)
+	//if this record entry is the last one, delete it; otherwise mark it as useable by setting its length to 0;
 	if(rid.slotNum + 1 == slotHeader.recordEntriesNumber){
 		
-		
-		memset(pageData + sizeof(SlotDirectoryHeader) + rid.slotNum * sizeof(SlotDirectoryRecordEntry), 0, sizeof(SlotDirectoryRecordEntry));
+		memset((char*)pageData + sizeof(SlotDirectoryHeader) + rid.slotNum * sizeof(SlotDirectoryRecordEntry), 0, sizeof(SlotDirectoryRecordEntry));
 		slotHeader.recordEntriesNumber --;
 		
 	}else{
 		
+		recordEntry.length = 0;
+		setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry); 
 		
 	}
 	
-	
-	
+	//update and set the new header
 	slotHeader.freeSpaceOffset += recordEntry.length;
-	
 	setSlotDirectoryHeader(pageData, slotHeader);
-	
 	
 	//overwrites the old page
 	if (fileHandle.writePage(rid.pageNum, pageData))
