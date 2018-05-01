@@ -94,17 +94,32 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 
     // Setting the return RID.
     rid.pageNum = i;
-    rid.slotNum = slotHeader.recordEntriesNumber;
+	
+	SlotDirectoryRecordEntry newRecordEntry;
+	//try to use the first slot entry that was deleted before
+	bool recycleSlot = false;
+	for(int i = 0; i < slotHeader.recordEntriesNumber; i++){
+		
+		newRecordEntry = getSlotDirectoryRecordEntry(pageData, i);
+		if(newRecordEntry.length == 0){
+			rid.slotNum = i;
+			recycleSlot = true;
+		}
+	}
+	
+	//if no deleted slot to be recycled, proceed to append new entry
+	if(!recycleSlot){
+		rid.slotNum = slotHeader.recordEntriesNumber;
+		slotHeader.recordEntriesNumber += 1;
+	}
 
-    // Adding the new record reference in the slot directory.
-    SlotDirectoryRecordEntry newRecordEntry;
-    newRecordEntry.length = recordSize;
-    newRecordEntry.offset = slotHeader.freeSpaceOffset - recordSize;
-    setSlotDirectoryRecordEntry(pageData, rid.slotNum, newRecordEntry);
+	// Adding the new record reference in the slot directory.
+	newRecordEntry.length = recordSize;
+	newRecordEntry.offset = slotHeader.freeSpaceOffset - recordSize;
+	setSlotDirectoryRecordEntry(pageData, rid.slotNum, newRecordEntry);
 
     // Updating the slot directory header.
     slotHeader.freeSpaceOffset = newRecordEntry.offset;
-    slotHeader.recordEntriesNumber += 1;
     setSlotDirectoryHeader(pageData, slotHeader);
 
     // Adding the record data.
