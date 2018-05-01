@@ -156,6 +156,14 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
 
+	//if it's a forwarding address
+	if(recordEntry.offset < 0){
+		RID realRid;
+		realRid.pageNum = recordEntry.length;
+		realRid.slotNum = recordEntry.offset * (-1);
+		readRecord(fileHandle, recordDescriptor, realRid, data);
+	}
+	
     // Retrieve the actual entry data
     getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
 
@@ -647,3 +655,78 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         return RBFM_WRITE_FAILED;
 	return SUCCESS;   
 }
+
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data){
+	
+	//find the field index that matches the attributeName
+	bool found = false;
+	unsigned attrIndex;
+    for (attrIndex = 0; attrIndex < recordDescriptor.size(); attrIndex++)
+    {
+        if (attributeName == recordDescriptor[attrIndex].name){
+			found = true;
+			break;
+		}
+	}
+	
+	if(!found) return 1;
+	
+	void* page = malloc(PAGE_SIZE);
+	if (fileHandle.readPage(rid.pageNum, page))
+        return RBFM_READ_FAILED;
+
+    // Checks if the specific slot id exists in the page
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(page);
+    
+    if(slotHeader.recordEntriesNumber < rid.slotNum)
+        return RBFM_SLOT_DN_EXIST;
+
+    // Gets the slot directory record entry data
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(page, rid.slotNum);
+
+	//if it's a forwarding address
+	if(recordEntry.offset < 0){
+		RID realRid;
+		realRid.pageNum = recordEntry.length;
+		realRid.slotNum = recordEntry.offset * (-1);
+		return readAttribute(fileHandle, recordDescriptor, realRid, attributeName, data);
+	}
+	
+	//set pointer to start of the record block
+	char* recordStart = (char*)page + recordEntry.offset;
+	RecordLength fieldCount;
+	memcpy(&fieldCount, recordStart, sizeof(RecordLength));
+	
+	if(fieldCount <= attrIndex) return 1; 
+	
+	char* pointer = recordStart + sizeof(RecordLength);
+	
+	//get nullIndicator and return if requested field is NULL
+	int nullIndicatorSize = getNullIndicatorSize(fieldCount);
+	char nullIndicator[nullIndicatorSize];
+    memset(nullIndicator, 0, nullIndicatorSize);
+    memcpy(nullIndicator, pointer, nullIndicatorSize);
+	
+	if(fieldIsNull(nullIndicator, attrIndex)) return 0;
+	
+	//pointer moves to start of columnOffsets
+	pointer += nullIndicatorSize;
+	
+	//Initiate the Boundaries of the field, as offsets relative to recordStart
+	ColumnOffset endPointer;
+	ColumnOffset startPointer = sizeof(RecordLength) + nullIndicatorSize + fieldCount * sizeof(ColumnOffset);
+	
+    memcpy(&endPointer, pointer + attrIndex * sizeof(ColumnOffset), sizeof(ColumnOffset));
+	
+	//If target field is not the first one, set its start bound to the end bound of the last field
+	if(attrIndex > 0)
+		memcpy(&startPointer, pointer + (attrIndex - 1)* sizeof(ColumnOffset), sizeof(ColumnOffset));
+	
+	uint32_t fieldSize = endPointer - startPointer;
+	
+	//copy field data into data
+	memcpy(data, recordStart + startPointer, fieldSize);
+	
+    free(page);
+	return SUCCESS;
+};
