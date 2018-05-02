@@ -69,6 +69,10 @@ protected:
 
 private:
   static RelationManager *_rm;
+
+  vector<Attribute> tableAttr();
+  vector<Attribute> columnAttr();  
+  
 };
 
 #endif

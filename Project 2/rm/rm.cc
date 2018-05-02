@@ -21,8 +21,11 @@ RelationManager::~RelationManager()
 
 RC RelationManager::createCatalog()
 {
+    
+
     return -1;
 }
+
 
 RC RelationManager::deleteCatalog()
 {
@@ -84,5 +87,63 @@ RC RelationManager::scan(const string &tableName,
     return -1;
 }
 
+
+// tableAttr() + columnAttr() will be used for createCatalog()
+// still working on createCatalog() on my local copy. 
+vector<Attribute> RelationManager::tableAttr() {
+
+    vector<Attribute> table;
+    Attribute attr;
+
+    attr.name = "table-id";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    table.push_back(attr);
+
+    attr.name = "table-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    table.push_back(attr);
+
+    attr.name = "file-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    table.push_back(attr);
+
+    return table;
+}
+
+vector<Attribute> RelationManager::columnAttr() {
+
+    vector<Attribute> column;
+    Attribute attr;
+
+    attr.name = "table-id";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    column.push_back(attr);
+
+    attr.name = "column-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    column.push_back(attr);
+
+    attr.name = "column-type";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    column.push_back(attr);
+
+    attr.name = "column-length";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    column.push_back(attr);
+
+    attr.name = "column-position";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    column.push_back(attr);
+
+    return column;
+}
 
 
