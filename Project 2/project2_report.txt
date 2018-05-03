@@ -1,7 +1,7 @@
 1. Basic information
-Team number (e.g., 01) : 
-#1 Submitter ID : 
-#1 Submitter Name : 
+Team number (e.g., 01) : 16
+#1 Submitter ID : 1427309
+#1 Submitter Name : Zhixu Wang
 
 
 
@@ -14,10 +14,52 @@ Team number (e.g., 01) :
 - Describe how you store a VarChar field.
 - Describe how you deal with an update and delete.
 
+Record format on page:
+[number of fields][Null Indicators][column offset1][column offset2][column offset3] ->
+[field data1][field data2][field data3]....
+This format achieves O(1) access time because with the given record descriptor, the index of the requested field
+can be calculated. Then the address of the field data can be calculated by header + index*(column offset length), 
+therefore the data can be found at that address directly.
+
+When storing a varchar field, the length of the varchar is extracted from the raw data first to determine the how many 
+bytes to copy into the page. On page the varchar data is stored directly next to other fields without the preceding varchar
+length. Instead the length is reflected in the difference between column offsets.
+
+When updating a record, there are three cases to consider:
+1. if the record size stays the same, just overwrite the old record at the same offset.
+2. if the record size changes but can still fit on the same page, delete the old record first, then append the new record 
+on the same page and record the new offset&length in the same slot directory so it can be access with the old RID.
+3. if the record size expands and can't fit on the same page, delete it and insert it on another page with enough space.
+Then store the returned RID in the old slot directory, but with a negative offset value to be distinguishable as a 
+forwarding address.
+
+To delete a record, the RBFM seeks the length and offset found in the slot directory determined by the given RID, and 
+removes a block of that length at that offset. All the records behind the deleted record are moved forward by the deleted
+length, so is the freespace offset. Depending on if the deleted record's slot directory used to be the last one on the page,
+the slot is either removed (by decrementing number of slots in the header), or marked as reusable by giving it a length of 0.
+
 
 4. Page Format
 - Show your page format design.
 - Describe how you deal with an update and delete.
+
+Each page begins with the Slot Header containing the freespace offset and the number of slot directories on this page.
+All the slot directories, ordered by their slot number, follow the slot header. Each slot contains the length and offset 
+of its record, or a disguised RID as a forwarding address.
+Records are stored on the other side, between the freespace offset and end of page.
+
+When updating a record, there are three cases to consider:
+1. if the record size stays the same, just overwrite the old record at the same offset.
+2. if the record size changes but can still fit on the same page, delete the old record first, then append the new record 
+on the same page and record the new offset&length in the same slot directory so it can be access with the old RID.
+3. if the record size expands and can't fit on the same page, delete it and insert it on another page with enough space.
+Then store the returned RID in the old slot directory, but with a negative offset value to be distinguishable as a 
+forwarding address.
+
+To delete a record, the RBFM seeks the length and offset found in the slot directory determined by the given RID, and 
+removes a block of that length at that offset. All the records behind the deleted record are moved forward by the deleted
+length, so is the freespace offset. Depending on if the deleted record's slot directory used to be the last one on the page,
+the slot is either removed (by decrementing number of slots in the header), or marked as reusable by giving it a length of 0.
 
 
 5. File Format
