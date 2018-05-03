@@ -19,6 +19,7 @@
 #define RBFM_READ_FAILED   5
 #define RBFM_WRITE_FAILED  6
 #define RBFM_SLOT_DN_EXIST 7
+#define RBFM_FIELD_NULL    8
 
 using namespace std;
 
@@ -94,7 +95,7 @@ public:
   // a satisfying record needs to be fetched from the file.
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
   RC getNextRecord(RID &rid, void *data);
-  RC close() { return -1; };
+  RC close();
 
 //let RecordBasedFileManager access and modify private fields
 friend class RecordBasedFileManager;
@@ -106,7 +107,8 @@ private:
   AttrType conditionAttrType;
   uint16_t conditionAttributeIndex;
   void *value;
-  unordered_set<uint16_t> outputAttributeIndices;
+  vector<uint16_t> outputAttributeIndices;
+  vector<string> outputAttributeNames;
   char *page;
   int currPageNum;
   uint16_t currSlotNum;
