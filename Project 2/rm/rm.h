@@ -10,6 +10,10 @@
 using namespace std;
 
 # define RM_EOF (-1)  // end of a scan operator
+#define SUCCESS 0
+#define SYS_TBL 0
+#define USER_TBL 1
+
 
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
@@ -63,16 +67,25 @@ public:
       RM_ScanIterator &rm_ScanIterator);
 
 
+
+  // helper functions for createCatalog
+  RC setTableInitial(const int table-id, const string &table-name, const string &file-name, const int table-flag, void *data);
+
+  RC setColumnInitial(const int table-id, const string &column-name, const int &column-type, const int column-length, const int column-position, void* data);
 protected:
   RelationManager();
   ~RelationManager();
 
 private:
   static RelationManager *_rm;
+  
+  // used to hold number of table-id entries
+  int maxTableID;
 
   vector<Attribute> tableAttr();
   vector<Attribute> columnAttr();  
   
+    
 };
 
 #endif

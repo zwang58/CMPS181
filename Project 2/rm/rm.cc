@@ -1,6 +1,10 @@
 
 #include "rm.h"
 
+#define SUCCESS 0
+
+
+
 RelationManager* RelationManager::_rm = 0;
 
 RelationManager* RelationManager::instance()
@@ -13,6 +17,7 @@ RelationManager* RelationManager::instance()
 
 RelationManager::RelationManager()
 {
+    _rbf_manager = RecordBasedFileManager::instance();
 }
 
 RelationManager::~RelationManager()
@@ -21,7 +26,28 @@ RelationManager::~RelationManager()
 
 RC RelationManager::createCatalog()
 {
+    // create "Tables.tbl" and "Columns.tbl" to hold the tables
+    if(_rbf_manager->createFile("Tables.tbl") != SUCCESS) return -1;
+    if(_rbf_manager->createFile("Columns.tbl") != SUCCESS) return -1;
+
+    // create the table and column with records provided in doc
+    vector<Attribute> table = tableAttr();
+    vector<Attribute> column = columnAttr();
+
+    // Catalog Filehandle fh
+    FileHandle fh;
+    if(_rbf_manager->openFile("Tables.tbl", fh) != SUCCESS) return -1;
     
+    // set up table-id counter and table page column page
+    RID rid;
+            
+    // call to setTableInitial();        
+    // _rbf_manager->insertRecord    
+
+    if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
+
+    // call to setColumnInitial();
+    // _rbf_manager->insertRecord
 
     return -1;
 }
@@ -110,6 +136,13 @@ vector<Attribute> RelationManager::tableAttr() {
     attr.length = (AttrLength)50;
     table.push_back(attr);
 
+    // "table-flag" will be used to determine if
+    // system table(SYS_TBL) or user table(USER_TBL)
+    attr.name = "table-flag";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    table.push_back(attr);    
+
     return table;
 }
 
@@ -146,4 +179,70 @@ vector<Attribute> RelationManager::columnAttr() {
     return column;
 }
 
+RC RelationManager::setTableInitial(const int table-id, const string &table-name, const string &file-name, const int table-flag, void *data) {
 
+	int offset = 0;
+	int tableName_len = table-name.length();
+	int fileName_len = file-name.length();
+
+    int nullIndicatorSize = int (ceil((double) 4 / CHAR_BIT));
+    char nullIndicator[nullIndicatorSize];
+
+    memset(nullIndicator, 0, nullIndicatorSize);
+    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    offset = nullIndicatorSize;
+
+    memcpy((char *)data + offset, &table-id, INT_SIZE);
+    offset += INT_SIZE;
+
+    memcpy((char *)data + offset, &tableName_len, VARCHAR_LENGTH_SIZE);
+    offset += VARCHAR_LENGTH_SIZE;
+
+    memcpy((char *)data + offset, &table-name, tableName_len);
+    offset += tableName_len;
+    
+    memcpy((char *)data + offset, &fileName_len, VARCHAR_LENGTH_SIZE);
+    offset += VARCHAR_LENGTH_SIZE;
+
+    memcpy((char *)data + offset, &file-name, fileName_len);
+    offset += fileName_len;
+
+    memcpy((char *)data + offset, &table-flag, INT_SIZE);
+    offset += INT_SIZE;
+
+    return SUCCESS;
+}
+
+RC RelationManager::setColumnInitial(const int table-id, const string &column-name, const int &column-type, const int column-length, const int column-position, void* data) {
+
+	int offset = 0;
+	int columnName_len = column-name.length();
+	
+	int nullIndicatorSize = int (ceil((double) 5 / CHAR_BIT));
+	char nullIndicator[nullIndicatorSize];
+
+    memset(nullIndicator, 0, nullIndicatorSize);
+    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    offset = nullIndicatorSize;
+
+	memcpy((char *)data + offset, &table-id, INT_SIZE);
+	offset += INT_SIZE;
+
+	
+	memcpy((char *)data + offset, &columnName_len, VARCHAR_LENGTH_SIZE);
+	offset += VARCHAR_LENGTH_SIZE;
+
+	memcpy((char *)data + offset, &column-name, columnName_len);
+	offset += columnName_len;
+
+	memcpy((char *)data + offset, &column-type, INT_SIZE);
+	offset += INT_SIZE;
+
+	memcpy((char *)data + offset, &column-length, INT_SIZE);
+	offset += INT_SIZE;
+
+	memcpy((char *)data + offset, &column-position, INT_SIZE);
+	offset += INT_SIZE;
+
+	return SUCCESS;
+}
