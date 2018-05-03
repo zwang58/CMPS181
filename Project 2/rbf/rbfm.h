@@ -5,6 +5,7 @@
 #include <vector>
 #include <climits>
 #include <inttypes.h>
+#include <unordered_set>
 #include "../rbf/pfm.h"
 
 #define INT_SIZE                4
@@ -92,7 +93,7 @@ public:
   // Never keep the results in the memory. When getNextRecord() is called, 
   // a satisfying record needs to be fetched from the file.
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
-  RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
+  RC getNextRecord(RID &rid, void *data);
   RC close() { return -1; };
 
 //let RecordBasedFileManager access and modify private fields
@@ -101,6 +102,8 @@ private:
   FileHandle *currFile;
   vector<Attribute> recordDescriptor;
   CompOp compOp;
+  string conditionAttribute;
+  AttrType conditionAttrType;
   uint16_t conditionAttributeIndex;
   void *value;
   unordered_set<uint16_t> outputAttributeIndices;

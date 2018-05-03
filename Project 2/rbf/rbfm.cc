@@ -660,11 +660,14 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
 	
 	//find the field index that matches the attributeName
 	bool found = false;
+	bool isVarChar = false;
 	unsigned attrIndex;
     for (attrIndex = 0; attrIndex < recordDescriptor.size(); attrIndex++)
     {
         if (attributeName == recordDescriptor[attrIndex].name){
 			found = true;
+			if(recordDescriptor[attrIndex].type == TypeVarChar) 
+				isVarChar = true;
 			break;
 		}
 	}
@@ -724,9 +727,16 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
 	
 	uint32_t fieldSize = endPointer - startPointer;
 	
-	//copy field data into data
-	memcpy(data, recordStart + startPointer, fieldSize);
-	
+	//if varchar copy the field length first
+	if(isVarChar){
+		memcpy(data, &fieldSize, sizeof(uint32_t));
+		memcpy((char*)data + sizeof(uint32_t), recordStart + startPointer, fieldSize);
+	}else{
+		
+		//copy field data into data
+		memcpy(data, recordStart + startPointer, fieldSize);
+	}
+
     free(page);
 	return SUCCESS;
 };
@@ -739,19 +749,25 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
       const vector<string> &attributeNames, // a list of projected attributes
       RBFM_ScanIterator &rbfm_ScanIterator){
 	
+	//Populate the private fields of rbfm_ScanIterator
     rbfm_ScanIterator.currFile = &fileHandle;
     rbfm_ScanIterator.recordDescriptor = recordDescriptor;
+	rbfm_ScanIterator.conditionAttribute = conditionAttribute;
     rbfm_ScanIterator.compOp = compOp;
-    rbfm_ScanIterator.value = value;
+    rbfm_ScanIterator.value = (void*)value;
     rbfm_ScanIterator.page = (char*)malloc(PAGE_SIZE);
     rbfm_ScanIterator.outputAttributeCount = attributeNames.size();
 	
+	//record the index and type of the condition attribute
     for (uint16_t i = 0; i < recordDescriptor.size(); i++) {
         if (conditionAttribute == recordDescriptor[i].name) {
             rbfm_ScanIterator.conditionAttributeIndex = i;
+			rbfm_ScanIterator.conditionAttrType = recordDescriptor[i].type;
+			break;
         }
     }
     
+	//collect the indices of output columns/attributes 
     unordered_set<uint16_t> attributeIndices;
     for (uint16_t i = 0; i < recordDescriptor.size(); i++) {
         for (uint16_t j = 0; j < attributeNames.size(); j++) {
@@ -762,6 +778,7 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
         }
     }
     
+	//set up the initial pageNum to 0 indicating that getNextRecord() has yet to run
     rbfm_ScanIterator.outputAttributeIndices = attributeIndices;	
 	rbfm_ScanIterator.currPageNum = -1;
     rbfm_ScanIterator.currSlotNum = 0;
@@ -775,17 +792,55 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
 // "data" follows the same format as RecordBasedFileManager::insertRecord().
 RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
 	
+	void* attrValue = malloc(PAGE_SIZE);
+	RID currRid;
+	bool conditionMet = false;
 	
+	do{
+		//if it's the first time running getNextRecord, reset pageNum&slotNum to 0
+		//or if slotNum goes overbound, go to the next page and reset slotNum to 0
+		if(currPageNum < 0 || currSlotNum >= totalSlots){
+		
+			currPageNum++;
+			currSlotNum = 0;
+			if (currFile->readPage(currPageNum, page))
+				return RBFM_READ_FAILED;
+			SlotDirectoryHeader slotHeader = 
+				RecordBasedFileManager::_rbf_manager->getSlotDirectoryHeader(page);
+			totalSlots = slotHeader.recordEntriesNumber;
+		}
+		
+		currRid.pageNum = currPageNum;
+		currRid.slotNum = currSlotNum;
+		if(RecordBasedFileManager::_rbf_manager->
+			readAttribute(*currFile, recordDescriptor, currRid, conditionAttribute, attrValue))
+			return 1;
+		
+		switch(conditionAttrType){
+			
+			case TypeInt: 
+			
+				conditionMet = int_comp(*(int*)attrValue);
+				break;
+				
+			case TypeReal: 
+			
+				conditionMet = float_comp(*(float*)attrValue);
+				break;
+				
+			case TypeVarChar: 
+			
+				uint32_t fieldSize;
+				memcpy(&fieldSize, attrValue, sizeof(uint32_t));
+				conditionMet = varchar_comp(string((char*)attrValue + sizeof(uint32_t), fieldSize));
+				break;
+			
+			default: break;
+		}
+			
+		currSlotNum++;
+	}while(!conditionMet);
 	
-	
-	
-	
-	
-
-
-
-
-
 
 	return RBFM_EOF; 
 }
@@ -825,12 +880,12 @@ bool RBFM_ScanIterator::varchar_comp(string val) {
     //cout << "comparing " << conditionValue << " to " << val << endl;
     int result = strcmp(val.c_str(), conditionValue.c_str());
     switch (compOp) {
-        case EQ_OP: return (cmp == 0);
-        case LT_OP: return (cmp < 0); 
-        case GT_OP: return (cmp > 0); 
-        case LE_OP: return (cmp <=  0); 
-        case GE_OP: return (cmp >=  0); 
-        case NE_OP: return (cmp != 0);  
+        case EQ_OP: return (result == 0);
+        case LT_OP: return (result < 0); 
+        case GT_OP: return (result > 0); 
+        case LE_OP: return (result <=  0); 
+        case GE_OP: return (result >=  0); 
+        case NE_OP: return (result != 0);  
         default: return true;
     }
 }
