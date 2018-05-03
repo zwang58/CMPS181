@@ -730,3 +730,107 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     free(page);
 	return SUCCESS;
 };
+
+RC RecordBasedFileManager::scan(FileHandle &fileHandle,
+      const vector<Attribute> &recordDescriptor,
+      const string &conditionAttribute,
+      const CompOp compOp,                  // comparision type such as "<" and "="
+      const void *value,                    // used in the comparison
+      const vector<string> &attributeNames, // a list of projected attributes
+      RBFM_ScanIterator &rbfm_ScanIterator){
+	
+    rbfm_ScanIterator.currFile = &fileHandle;
+    rbfm_ScanIterator.recordDescriptor = recordDescriptor;
+    rbfm_ScanIterator.compOp = compOp;
+    rbfm_ScanIterator.value = value;
+    rbfm_ScanIterator.page = (char*)malloc(PAGE_SIZE);
+    rbfm_ScanIterator.outputAttributeCount = attributeNames.size();
+	
+    for (uint16_t i = 0; i < recordDescriptor.size(); i++) {
+        if (conditionAttribute == recordDescriptor[i].name) {
+            rbfm_ScanIterator.conditionAttributeIndex = i;
+        }
+    }
+    
+    unordered_set<uint16_t> attributeIndices;
+    for (uint16_t i = 0; i < recordDescriptor.size(); i++) {
+        for (uint16_t j = 0; j < attributeNames.size(); j++) {
+            if (attributeNames[j] == recordDescriptor[i].name) {
+                attributeIndices.insert(i);
+                break;
+            }            
+        }
+    }
+    
+    rbfm_ScanIterator.outputAttributeIndices = attributeIndices;	
+	rbfm_ScanIterator.currPageNum = -1;
+    rbfm_ScanIterator.currSlotNum = 0;
+    rbfm_ScanIterator.outputAttributeCount = attributeNames.size();
+
+	return SUCCESS;
+}
+
+// Never keep the results in the memory. When getNextRecord() is called, 
+// a satisfying record needs to be fetched from the file.
+// "data" follows the same format as RecordBasedFileManager::insertRecord().
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
+	
+	
+	
+	
+	
+	
+	
+
+
+
+
+
+
+	return RBFM_EOF; 
+}
+
+bool RBFM_ScanIterator::float_comp(float val) {
+
+    float conditionValue = *(float*)value;
+    switch (compOp) {
+        case EQ_OP: return (val == conditionValue);
+        case LT_OP: return (val < conditionValue); 
+        case GT_OP: return (val > conditionValue); 
+        case LE_OP: return (val <= conditionValue); 
+        case GE_OP: return (val >= conditionValue); 
+        case NE_OP: return (val != conditionValue);  
+        default: return true;
+    }
+	
+}
+
+bool RBFM_ScanIterator::int_comp(int val) {
+	
+    int conditionValue = *(int*)value;
+    switch (compOp) {
+        case EQ_OP: return (val == conditionValue);
+        case LT_OP: return (val < conditionValue); 
+        case GT_OP: return (val > conditionValue); 
+        case LE_OP: return (val <= conditionValue); 
+        case GE_OP: return (val >= conditionValue); 
+        case NE_OP: return (val != conditionValue);  
+        default: return true;
+    }
+}
+
+bool RBFM_ScanIterator::varchar_comp(string val) {
+	
+    string conditionValue = string((char*)(value));
+    //cout << "comparing " << conditionValue << " to " << val << endl;
+    int result = strcmp(val.c_str(), conditionValue.c_str());
+    switch (compOp) {
+        case EQ_OP: return (cmp == 0);
+        case LT_OP: return (cmp < 0); 
+        case GT_OP: return (cmp > 0); 
+        case LE_OP: return (cmp <=  0); 
+        case GE_OP: return (cmp >=  0); 
+        case NE_OP: return (cmp != 0);  
+        default: return true;
+    }
+}

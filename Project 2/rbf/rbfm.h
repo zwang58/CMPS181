@@ -94,11 +94,30 @@ public:
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
   RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
   RC close() { return -1; };
+
+//let RecordBasedFileManager access and modify private fields
+friend class RecordBasedFileManager;
+private:
+  FileHandle *currFile;
+  vector<Attribute> recordDescriptor;
+  CompOp compOp;
+  uint16_t conditionAttributeIndex;
+  void *value;
+  unordered_set<uint16_t> outputAttributeIndices;
+  char *page;
+  int currPageNum;
+  uint16_t currSlotNum;
+  uint16_t totalSlots;
+  uint16_t outputAttributeCount;
+  bool float_comp(float val);
+  bool int_comp(int val);
+  bool varchar_comp(string val);
 };
 
 
 class RecordBasedFileManager
 {
+friend class RBFM_ScanIterator;
 public:
   static RecordBasedFileManager* instance();
 
