@@ -160,13 +160,13 @@ RC RelationManager::deleteTable(const string &tableName)
     RBFM_ScanIterator rbsi;
     const vector<string> tableAttrs ({"table-id", "table-flag"});
 	
-    if(_rbf_manager->openFile("Tables.tbl", fh)) {
+    if(_rbf_manager->openFile("Tables.tbl", fh) != SUCCESS) {
         _rbf_manager->closeFile(fh);
         return -1;
     }
 
 	//set up rbsi to find the table entry with the requested table-name
-    if(_rbf_manager->scan(fh, tableAttr(), "table-name", EQ_OP, tableName.c_str(), tableAttrs, rbsi)) { 
+    if(_rbf_manager->scan(fh, tableAttr(), "table-name", EQ_OP, tableName.c_str(), tableAttrs, rbsi) != SUCCESS) { 
         _rbf_manager->closeFile(fh);    
         rbsi.close();
         return -1;
@@ -201,13 +201,13 @@ RC RelationManager::deleteTable(const string &tableName)
    //start scanning through Columns for all column entries with target table-id
     const vector<string> colAttrs ({"column-name"});    
     
-    if(_rbf_manager->openFile("Columns.tbl", fh)){
+    if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS ){
 		_rbf_manager->closeFile(fh);
         return -1;
 	}
    
    //set up rbsi to find the column entries with the requested table-id
-    if(_rbf_manager->scan(fh, columnAttr(), "table-id", EQ_OP, (void *)&tableId, colAttrs, rbsi)) {
+    if(_rbf_manager->scan(fh, columnAttr(), "table-id", EQ_OP, (void *)&tableId, colAttrs, rbsi) != SUCCESS) {
         _rbf_manager->closeFile(fh);
         rbsi.close();
         free(returnedData);
@@ -228,13 +228,75 @@ RC RelationManager::deleteTable(const string &tableName)
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
     FileHandle fh;
-    RBFM_ScanIterator rbfm_si;
+    RBFM_ScanIterator rbsi;
     RID rid;
-    
-    
-    
+    int tableID;   
+    const vector<string> tableAttrs ({"table-id"}); 
 
-	
+    if(_rbf_manager->openFile("Tables.tbl", fh) != SUCCESS) {
+        _rbf_manager->closeFile(fh);
+        return -1;
+    }
+
+    //set up rbsi to find the table entry with the requested table-name
+    if(_rbf_manager->scan(fh, tableAttr(), "table-name", EQ_OP, tableName.c_str(), tableAttrs, rbsi) != SUCCESS) {
+        _rbf_manager->closeFile(fh);
+        rbsi.close();
+        return -1;
+    }
+
+    char* returnedData = (char*)malloc(PAGE_SIZE);
+    if(rbsi.getNextRecord(rid, returnedData) == RM_EOF) {
+        _rbf_manager->closeFile(fh);
+        rbsi.close();
+        free(returnedData);
+        return -1;
+    }
+    
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1;
+    rbsi.close();
+
+    memcpy(&tableID, (char*) returnedData + 1, INT_SIZE);
+    const vector<string> columnAttrs ({"column-name", "column-type", "column-length"});
+
+    if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
+
+    if(_rbf_manager->scan(fh, columnAttr(), "table-id", EQ_OP, (void *)&tableID, columnAttrs, rbsi) != SUCCESS) {
+        _rbf_manager->closeFile(fh);
+        rbsi.close();
+        free(returnedData);
+        return -1;
+    }
+    
+    while(rbsi.getNextRecord(rid, returnedData) != RM_EOF) {
+        Attribute attr;
+        int offset = 0;
+        int name_len;
+        string  name;
+        int type;
+        int length;
+
+        memcpy(&name_len, (char*) returnedData, VARCHAR_LENGTH_SIZE);
+        offset += VARCHAR_LENGTH_SIZE;
+
+        name.assign((char*) returnedData + offset, (char *) returnedData + offset + name_len);
+        offset += name_len;
+
+        memcpy(&type, (char*) returnedData + offset, INT_SIZE);
+        offset += INT_SIZE;
+        
+        memcpy(&length, (char*) returnedData + offset, INT_SIZE);
+        offset += INT_SIZE;
+
+        attr.name = name;
+        attr.type = (AttrType)type;
+        attr.length = (AttrLength)length;
+        attrs.push_back(attr);
+    }
+    
+    rbsi.close();
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1; 
+
     return SUCCESS;
 }
 
