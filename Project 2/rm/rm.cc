@@ -60,7 +60,7 @@ RC RelationManager::createCatalog()
     if(setTableInitial( 2, "Columns", "Columns.tbl", SYS_TABLE, table_data) != SUCCESS) return -1;  
     if(_rbf_manager->insertRecord(fh, column, table_data, rid) != SUCCESS) return -1;
     
-    _rbf_manager->closeFile(fh);
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1;
     
     /* ------------------------------------------------ */
     // column table
@@ -101,7 +101,7 @@ RC RelationManager::createCatalog()
 
     free(table_data);
     free(col_data);
-    _rbf_manager->closeFile(fh);  
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1;  
 
     maxTableID = 2;   
     return SUCCESS;
@@ -111,14 +111,46 @@ RC RelationManager::createCatalog()
 RC RelationManager::deleteCatalog()
 {
     if(_rbf_manager->destroyFile("Tables.tbl") != SUCCESS) return -1;
-    if(_rbf_manager->destroyFIle("Columns.tbl") != SUCCESS) return -1;
+    if(_rbf_manager->destroyFile("Columns.tbl") != SUCCESS) return -1;
     
     return SUCCESS;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
-    return -1;
+    string fileName = tableName + ".tbl";
+    if(_rbf_manager->createFile(fileName) != SUCCESS) return -1;
+    
+    FileHandle fh;
+    if(_rbf_manager->openFile("Tables.tbl", fh) != SUCCESS) return -1;
+
+    maxTableID++;
+    int tableID = maxTableID;
+    RID table_rid, column_rid;
+    void* table_data = malloc(PAGE_SIZE);
+    void* column_data = malloc(PAGE_SIZE);
+    vector<Attribute> table_attrs = tableAttr();
+    vector<Attribute> column_attrs = columnAttr();
+
+    if(setTableInitial( tableID, tableName, fileName, USER_TABLE, table_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord( fh, table_attrs, table_data, table_rid) != SUCCESS) return -1;    
+
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1;
+
+    if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
+    
+    Attribute attr;
+    for(unsigned int i = 0; i < attrs.size(); i++) {
+        attr = attrs.at(i);
+        if(setColumnInitial( tableID, attr.name, attr.type, attr.length, i + 1, column_data) != SUCCESS) return -1;
+        if(_rbf_manager->insertRecord( fh, column_attrs, column_data, column_rid) != SUCCESS) return -1; 
+    }
+
+    if(_rbf_manager->closeFile(fh) != SUCCESS) return -1;
+    
+    free(table_data);
+    free(column_data);
+    return SUCCESS;
 }
 
 RC RelationManager::deleteTable(const string &tableName)
@@ -295,7 +327,7 @@ RC RelationManager::setTableInitial(const int tableID, const string &tableName, 
     char nullIndicator[nullIndicatorSize];
 
     memset(nullIndicator, 0, nullIndicatorSize);
-    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    memcpy((char*) data, nullIndicator, nullIndicatorSize);
     offset = nullIndicatorSize;
 
     memcpy((char *)data + offset, &tableID, INT_SIZE);
@@ -328,7 +360,7 @@ RC RelationManager::setColumnInitial(const int tableID, const string &columnName
 	char nullIndicator[nullIndicatorSize];
 
     memset(nullIndicator, 0, nullIndicatorSize);
-    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    memcpy((char*) data, nullIndicator, nullIndicatorSize);
     offset = nullIndicatorSize;
 
 	memcpy((char *)data + offset, &tableID, INT_SIZE);
