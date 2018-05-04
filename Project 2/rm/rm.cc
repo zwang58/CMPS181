@@ -48,7 +48,7 @@ RC RelationManager::createCatalog()
     
     if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
     
-    _rbf_manager->close(fh);
+    _rbf_manager->closeFile(fh);
     
     return SUCCESS;
 }
@@ -158,7 +158,6 @@ RC RelationManager::scan(const string &tableName,
 	vector<Attribute> recordDescriptor;
 	getAttributes(tableName, recordDescriptor);
 	
-	RBFM_ScanIterator *rbsi = new RBFM_ScanIterator();
 	return _rbf_manager->scan(fh, recordDescriptor, conditionAttribute, compOp, value, attributeNames, *rm_ScanIterator.rbsi);
 
 }
@@ -229,7 +228,7 @@ vector<Attribute> RelationManager::columnAttr() {
     return column;
 }
 
-RC RelationManager::setTableInitial(const int tableID, const string &tableNname, const string &fileName, const int tableFlag, void *data) {
+RC RelationManager::setTableInitial(const int tableID, const string &tableName, const string &fileName, const int tableFlag, void *data) {
 
 	int offset = 0;
 	int tableName_len = tableName.length();
