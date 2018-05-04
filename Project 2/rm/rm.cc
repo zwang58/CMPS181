@@ -160,6 +160,13 @@ RC RelationManager::deleteTable(const string &tableName)
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
+    FileHandle fh;
+    RBFM_ScanIterator rbfm_si;
+    RID rid;
+    
+    
+    
+
 	
     return SUCCESS;
 }
