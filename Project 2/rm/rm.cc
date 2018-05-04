@@ -29,6 +29,11 @@ RM_ScanIterator::RM_ScanIterator() {
     rbsi = new RBFM_ScanIterator();
 }
 
+RC RM_ScanIterator::close() {   
+   rbsi->close();
+   return SUCCESS;
+}
+
 RC RelationManager::createCatalog()
 {
     // create "Tables.tbl" and "Columns.tbl" to hold the tables
