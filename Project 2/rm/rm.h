@@ -11,6 +11,9 @@ using namespace std;
 
 # define RM_EOF (-1)  // end of a scan operator
 #define SUCCESS 0
+
+// used for table-flag to distinguish between
+// a system table and user table
 #define SYS_TBL 0
 #define USER_TBL 1
 
@@ -69,9 +72,9 @@ public:
 
 
   // helper functions for createCatalog
-  RC setTableInitial(const int table-id, const string &table-name, const string &file-name, const int table-flag, void *data);
+  RC setTableInitial(const int tableID, const string &tableName, const string &fileName, const int tableFlag, void *data);
 
-  RC setColumnInitial(const int table-id, const string &column-name, const int &column-type, const int column-length, const int column-position, void* data);
+  RC setColumnInitial(const int tableID, const string &columnName, const int columnType, const int columnLength, const int columnPosition, void* data);
 protected:
   RelationManager();
   ~RelationManager();
