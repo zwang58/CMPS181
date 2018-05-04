@@ -2,7 +2,8 @@
 #include "rm.h"
 
 #define SUCCESS 0
-
+#define SYS_TABLE 0
+#define USER_TABLE 1
 
 
 RelationManager* RelationManager::_rm = 0;
@@ -38,21 +39,72 @@ RC RelationManager::createCatalog()
     // Catalog Filehandle fh
     FileHandle fh;
     if(_rbf_manager->openFile("Tables.tbl", fh) != SUCCESS) return -1;
-    
+
     // set up table-id counter and table page column page
     RID rid;
+    int size = 1 + INT_SIZE + 50 + 50 + INT_SIZE;
+    void* table_data = malloc(size);
     
+    if(setTableInitial( 1, "Tables", "Tables.tbl", SYS_TABLE, table_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, table, table_data, rid) != SUCCESS) return -1;
+    
+    if(setTableInitial( 2, "Columns", "Columns.tbl", SYS_TABLE, table_data) != SUCCESS) return -1;  
+    if(_rbf_manager->insertRecord(fh, column, table_data, rid) != SUCCESS) return -1;
+    
+    _rbf_manager->closeFile(fh);
+    
+    /* ------------------------------------------------ */
+    // column table
+
     if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
-    
-    _rbf_manager->close(fh);
-    
+
+    RID rid_col;
+    void* col_data = malloc(PAGE_SIZE);
+
+    // table
+    if(setColumnInitial( 1, "table-id", TypeInt, INT_SIZE, 1, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 1, "table-name", TypeVarChar, 50, 2, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 1, "file-name", TypeVarChar, 50, 3, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 1, "table-flag", TypeInt, INT_SIZE, 4, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    // column 
+    if(setColumnInitial( 2, "table-id", TypeInt, INT_SIZE, 1, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 2, "column-name", TypeVarChar, 50, 2, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 2, "column-type", TypeInt, INT_SIZE, 3, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 2, "column-length", TypeInt, INT_SIZE, 4, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    if(setColumnInitial( 2, "column-position", TypeInt, INT_SIZE, 5, col_data) != SUCCESS) return -1;
+    if(_rbf_manager->insertRecord(fh, column, col_data, rid_col) != SUCCESS) return -1;
+
+    free(table_data);
+    free(col_data);
+    _rbf_manager->closeFile(fh);  
+
+    maxTableID = 2;   
     return SUCCESS;
 }
 
 
 RC RelationManager::deleteCatalog()
 {
-    return -1;
+    if(_rbf_manager->destroyFile("Tables.tbl") != SUCCESS) return -1;
+    if(_rbf_manager->destroyFIle("Columns.tbl") != SUCCESS) return -1;
+    
+    return SUCCESS;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
@@ -218,7 +270,7 @@ vector<Attribute> RelationManager::columnAttr() {
     return column;
 }
 
-RC RelationManager::setTableInitial(const int tableID, const string &tableNname, const string &fileName, const int tableFlag, void *data) {
+RC RelationManager::setTableInitial(const int tableID, const string &tableName, const string &fileName, const int tableFlag, void *data) {
 
 	int offset = 0;
 	int tableName_len = tableName.length();
