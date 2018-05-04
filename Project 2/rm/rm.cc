@@ -45,16 +45,12 @@ RC RelationManager::createCatalog()
     
     // set up table-id counter and table page column page
     RID rid;
-            
-    // call to setTableInitial();        
-    // _rbf_manager->insertRecord    
-
+    
     if(_rbf_manager->openFile("Columns.tbl", fh) != SUCCESS) return -1;
-
-    // call to setColumnInitial();
-    // _rbf_manager->insertRecord
-
-    return -1;
+    
+    _rbf_manager->close(fh);
+    
+    return SUCCESS;
 }
 
 
@@ -233,11 +229,11 @@ vector<Attribute> RelationManager::columnAttr() {
     return column;
 }
 
-RC RelationManager::setTableInitial(const int table-id, const string &table-name, const string &file-name, const int table-flag, void *data) {
+RC RelationManager::setTableInitial(const int tableID, const string &tableNname, const string &fileName, const int tableFlag, void *data) {
 
 	int offset = 0;
-	int tableName_len = table-name.length();
-	int fileName_len = file-name.length();
+	int tableName_len = tableName.length();
+	int fileName_len = fileName.length();
 
     int nullIndicatorSize = int (ceil((double) 4 / CHAR_BIT));
     char nullIndicator[nullIndicatorSize];
@@ -246,31 +242,31 @@ RC RelationManager::setTableInitial(const int table-id, const string &table-name
     memcpy(nullIndicator, (char*) data, nullIndicatorSize);
     offset = nullIndicatorSize;
 
-    memcpy((char *)data + offset, &table-id, INT_SIZE);
+    memcpy((char *)data + offset, &tableID, INT_SIZE);
     offset += INT_SIZE;
 
     memcpy((char *)data + offset, &tableName_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
 
-    memcpy((char *)data + offset, &table-name, tableName_len);
+    memcpy((char *)data + offset, &tableName, tableName_len);
     offset += tableName_len;
     
     memcpy((char *)data + offset, &fileName_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
 
-    memcpy((char *)data + offset, &file-name, fileName_len);
+    memcpy((char *)data + offset, &fileName, fileName_len);
     offset += fileName_len;
 
-    memcpy((char *)data + offset, &table-flag, INT_SIZE);
+    memcpy((char *)data + offset, &tableFlag, INT_SIZE);
     offset += INT_SIZE;
 
     return SUCCESS;
 }
 
-RC RelationManager::setColumnInitial(const int table-id, const string &column-name, const int &column-type, const int column-length, const int column-position, void* data) {
+RC RelationManager::setColumnInitial(const int tableID, const string &columnName, const int columnType, const int columnLength, const int columnPosition, void* data) {
 
 	int offset = 0;
-	int columnName_len = column-name.length();
+	int columnName_len = columnName.length();
 	
 	int nullIndicatorSize = int (ceil((double) 5 / CHAR_BIT));
 	char nullIndicator[nullIndicatorSize];
@@ -279,23 +275,23 @@ RC RelationManager::setColumnInitial(const int table-id, const string &column-na
     memcpy(nullIndicator, (char*) data, nullIndicatorSize);
     offset = nullIndicatorSize;
 
-	memcpy((char *)data + offset, &table-id, INT_SIZE);
+	memcpy((char *)data + offset, &tableID, INT_SIZE);
 	offset += INT_SIZE;
 
 	
 	memcpy((char *)data + offset, &columnName_len, VARCHAR_LENGTH_SIZE);
 	offset += VARCHAR_LENGTH_SIZE;
 
-	memcpy((char *)data + offset, &column-name, columnName_len);
+	memcpy((char *)data + offset, &columnName, columnName_len);
 	offset += columnName_len;
 
-	memcpy((char *)data + offset, &column-type, INT_SIZE);
+	memcpy((char *)data + offset, &columnType, INT_SIZE);
 	offset += INT_SIZE;
 
-	memcpy((char *)data + offset, &column-length, INT_SIZE);
+	memcpy((char *)data + offset, &columnLength, INT_SIZE);
 	offset += INT_SIZE;
 
-	memcpy((char *)data + offset, &column-position, INT_SIZE);
+	memcpy((char *)data + offset, &columnPosition, INT_SIZE);
 	offset += INT_SIZE;
 
 	return SUCCESS;
