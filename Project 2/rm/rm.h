@@ -4,6 +4,10 @@
 
 #include <string>
 #include <vector>
+#include <climits>
+#include <cstring>
+#include <iostream>
+#include <cmath>
 
 #include "../rbf/rbfm.h"
 
@@ -21,12 +25,16 @@ using namespace std;
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
 public:
-  RM_ScanIterator() {};
+  RM_ScanIterator();
   ~RM_ScanIterator() {};
 
   // "data" follows the same format as RelationManager::insertTuple()
-  RC getNextTuple(RID &rid, void *data) { return RM_EOF; };
-  RC close() { return -1; };
+  RC getNextTuple(RID &rid, void *data);
+  RC close();
+  
+friend class RelationManager;
+private:
+  RBFM_ScanIterator *rbsi;
 };
 
 
@@ -79,6 +87,7 @@ protected:
   RelationManager();
   ~RelationManager();
 
+friend class RM_ScanIterator;
 private:
   static RelationManager *_rm;
   static RecordBasedFileManager *_rbf_manager;
