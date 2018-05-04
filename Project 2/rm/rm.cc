@@ -295,7 +295,7 @@ RC RelationManager::setTableInitial(const int tableID, const string &tableName, 
     char nullIndicator[nullIndicatorSize];
 
     memset(nullIndicator, 0, nullIndicatorSize);
-    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    memcpy((char*) data, nullIndicator, nullIndicatorSize);
     offset = nullIndicatorSize;
 
     memcpy((char *)data + offset, &tableID, INT_SIZE);
@@ -328,7 +328,7 @@ RC RelationManager::setColumnInitial(const int tableID, const string &columnName
 	char nullIndicator[nullIndicatorSize];
 
     memset(nullIndicator, 0, nullIndicatorSize);
-    memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+    memcpy((char*) data, nullIndicator, nullIndicatorSize);
     offset = nullIndicatorSize;
 
 	memcpy((char *)data + offset, &tableID, INT_SIZE);
