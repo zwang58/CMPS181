@@ -808,7 +808,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
 			currPageNum++;
 			currSlotNum = 0;
 			if (currFile->readPage(currPageNum, page))
-				return RBFM_READ_FAILED;
+				return RBFM_EOF;
 			SlotDirectoryHeader slotHeader = 
 				RecordBasedFileManager::_rbf_manager->getSlotDirectoryHeader(page);
 			totalSlots = slotHeader.recordEntriesNumber;
@@ -889,7 +889,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
 	//write the nullIndicator to beginning of data
 	memcpy(data, &nullIndicator, nullIndicatorSize);
 	free(attrValue);
-	return RBFM_EOF; 
+	return SUCCESS; 
 }
 
 bool RBFM_ScanIterator::float_comp(float val) {

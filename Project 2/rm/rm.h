@@ -22,8 +22,11 @@ public:
   ~RM_ScanIterator() {};
 
   // "data" follows the same format as RelationManager::insertTuple()
-  RC getNextTuple(RID &rid, void *data) { return RM_EOF; };
+  RC getNextTuple(RID &rid, void *data);
   RC close() { return -1; };
+  
+private:
+  RBFM_ScanIterator *rbsi;
 };
 
 
@@ -76,6 +79,7 @@ protected:
   RelationManager();
   ~RelationManager();
 
+friend class RM_ScanIterator;
 private:
   static RelationManager *_rm;
   static RecordBasedFileManager *_rbf_manager;

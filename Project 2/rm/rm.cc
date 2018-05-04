@@ -25,6 +25,10 @@ RelationManager::~RelationManager()
 {
 }
 
+RM_ScanIterator::RM_ScanIterator() {
+    rbsi = new RBFM_ScanIterator();
+}
+
 RC RelationManager::createCatalog()
 {
     // create "Tables.tbl" and "Columns.tbl" to hold the tables
@@ -153,7 +157,14 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	RBFM_ScanIterator *rbsi = new RBFM_ScanIterator();
+	return _rbf_manager->scan(fh, recordDescriptor, conditionAttribute, compOp, value, attributeNames, *rm_ScanIterator.rbsi);
+
 }
 
 
@@ -288,4 +299,9 @@ RC RelationManager::setColumnInitial(const int table-id, const string &column-na
 	offset += INT_SIZE;
 
 	return SUCCESS;
+}
+
+RC RM_ScanIterator::getNextTuple(RID &rid, void *data) {
+    if(rbsi->getNextRecord(rid, data) != 0) return RM_EOF;
+    return SUCCESS;
 }
