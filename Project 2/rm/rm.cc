@@ -155,7 +155,74 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 
 RC RelationManager::deleteTable(const string &tableName)
 {
-    return -1;
+    FileHandle fh;
+	RID rid;
+    RBFM_ScanIterator rbsi;
+    const vector<string> tableAttrs ({"table-id", "table-flag"});
+	
+    if(_rbf_manager->openFile("Tables.tbl", fh)) {
+        _rbf_manager->closeFile(fh);
+        return -1;
+    }
+
+	//set up rbsi to find the table entry with the requested table-name
+    if(_rbf_manager->scan(fh, tableAttr(), "table-name", EQ_OP, tableName.c_str(), tableAttrs, rbsi)) { 
+        _rbf_manager->closeFile(fh);    
+        rbsi.close();
+        return -1;
+    }
+    
+    char* returnedData = (char*)malloc(PAGE_SIZE);
+    if(rbsi.getNextRecord(rid, returnedData) == RM_EOF) {
+        _rbf_manager->closeFile(fh);
+        rbsi.close();
+        free(returnedData);
+        return -1;
+    }
+
+	//remove requested table entry from Tables
+    _rbf_manager->deleteRecord(fh, tableAttr(), rid);    
+    _rbf_manager->closeFile(fh);
+ 
+    int tableId;
+    memcpy(&tableId, returnedData + 1, sizeof(int));
+    
+    int tableFlag;
+    memcpy(&tableFlag, returnedData + 1 + sizeof(int), sizeof(int));
+    
+	//if deleted table is a system table, skip deleting column entries
+    if(tableFlag == SYS_TABLE)  {
+        free(returnedData);
+        return -1;
+    }
+	
+    _rbf_manager->destroyFile(tableName + ".tbl");
+   
+   //start scanning through Columns for all column entries with target table-id
+    const vector<string> colAttrs ({"column-name"});    
+    
+    if(_rbf_manager->openFile("Columns.tbl", fh)){
+		_rbf_manager->closeFile(fh);
+        return -1;
+	}
+   
+   //set up rbsi to find the column entries with the requested table-id
+    if(_rbf_manager->scan(fh, columnAttr(), "table-id", EQ_OP, (void *)&tableId, colAttrs, rbsi)) {
+        _rbf_manager->closeFile(fh);
+        rbsi.close();
+        free(returnedData);
+        return -1;
+    }
+    
+	//remove all column entries with the requested table-id from Columns
+    while(rbsi.getNextRecord(rid, returnedData) != RM_EOF) {
+        _rbf_manager->deleteRecord(fh, columnAttr(), rid);
+    }
+    
+    rbsi.close();
+    _rbf_manager->closeFile(fh);
+    free(returnedData);
+	return SUCCESS;
 }
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
