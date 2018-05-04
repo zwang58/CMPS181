@@ -298,6 +298,5 @@ RC RelationManager::setColumnInitial(const int tableID, const string &columnName
 }
 
 RC RM_ScanIterator::getNextTuple(RID &rid, void *data) {
-    if(rbsi->getNextRecord(rid, data) != 0) return RM_EOF;
-    return SUCCESS;
+    return rbsi->getNextRecord(rid, data);
 }
