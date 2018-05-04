@@ -924,7 +924,6 @@ bool RBFM_ScanIterator::int_comp(int val) {
 bool RBFM_ScanIterator::varchar_comp(string val) {
 	
     string conditionValue = string((char*)(value));
-    //cout << "comparing " << conditionValue << " to " << val << endl;
     int result = strcmp(val.c_str(), conditionValue.c_str());
     switch (compOp) {
         case EQ_OP: return (result == 0);

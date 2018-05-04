@@ -6,6 +6,7 @@
 
 
 RelationManager* RelationManager::_rm = 0;
+RecordBasedFileManager* RelationManager::_rbf_manager = NULL;
 
 RelationManager* RelationManager::instance()
 {
@@ -66,37 +67,79 @@ RC RelationManager::deleteTable(const string &tableName)
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
-    return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	if(_rbf_manager->insertRecord(fh, recordDescriptor, data, rid) != SUCCESS) return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	if(_rbf_manager->deleteRecord(fh, recordDescriptor, rid) != SUCCESS) return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	if(_rbf_manager->updateRecord(fh, recordDescriptor, data, rid) != SUCCESS) return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::readTuple(const string &tableName, const RID &rid, void *data)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	if(_rbf_manager->readRecord(fh, recordDescriptor, rid, data) != SUCCESS) return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::printTuple(const vector<Attribute> &attrs, const void *data)
 {
-	return -1;
+	if(_rbf_manager->printRecord(attrs, data) != SUCCESS) return -1;
+	return SUCCESS;
 }
 
 RC RelationManager::readAttribute(const string &tableName, const RID &rid, const string &attributeName, void *data)
 {
-    return -1;
+	FileHandle fh;
+	if(_rbf_manager->openFile(tableName + ".tbl", fh) != SUCCESS) return -1;
+	
+	vector<Attribute> recordDescriptor;
+	getAttributes(tableName, recordDescriptor);
+	
+	if(_rbf_manager->readAttribute(fh, recordDescriptor, rid, attributeName, data) != SUCCESS) return -1;
+	
+    return SUCCESS;
 }
 
 RC RelationManager::scan(const string &tableName,

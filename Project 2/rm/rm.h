@@ -81,6 +81,7 @@ protected:
 
 private:
   static RelationManager *_rm;
+  static RecordBasedFileManager *_rbf_manager;
   
   // used to hold number of table-id entries
   int maxTableID;
