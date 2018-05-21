@@ -33,12 +33,12 @@ RC IndexManager::destroyFile(const string &fileName)
 
 RC IndexManager::openFile(const string &fileName, IXFileHandle &ixfileHandle)
 {
-    return _pf_manager->openFile(fileName, *(ixfileHandle.fh));
+    return _pf_manager->openFile(fileName, ixfileHandle.fh);
 }
 
 RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
 {
-    return _pf_manager->closeFile(*(ixfileHandle.fh));
+    return _pf_manager->closeFile(ixfileHandle.fh);
 }
 
 RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
@@ -87,7 +87,7 @@ RC IX_ScanIterator::close()
 
 IXFileHandle::IXFileHandle()
 {
-	fh = new FileHandle();
+	//fh = new FileHandle();
 	ixReadPageCounter = 0;
 	ixWritePageCounter = 0;
 	ixAppendPageCounter = 0;
