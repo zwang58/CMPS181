@@ -52,6 +52,7 @@ class IndexManager {
 
     private:
         static IndexManager *_index_manager;
+		static PagedFileManager *_pf_manager;
 };
 
 
@@ -75,6 +76,8 @@ class IX_ScanIterator {
 
 class IXFileHandle {
     public:
+	
+	FileHandle *fh;
 
     // variables to keep counter for each operation
     unsigned ixReadPageCounter;
