@@ -88,9 +88,9 @@ RC IX_ScanIterator::close()
 IXFileHandle::IXFileHandle()
 {
 	fh = new FileHandle();
-    ixReadPageCounter = 0;
-    ixWritePageCounter = 0;
-    ixAppendPageCounter = 0;
+	ixReadPageCounter = 0;
+	ixWritePageCounter = 0;
+	ixAppendPageCounter = 0;
 }
 
 IXFileHandle::~IXFileHandle()
@@ -99,6 +99,10 @@ IXFileHandle::~IXFileHandle()
 
 RC IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount)
 {
-    return -1;
+	if(fh->collectCounterValues(readPageCount, writePageCount, appendPageCount)) return -1;
+	ixReadPageCounter = readPageCount;
+	ixWritePageCounter = writePageCount;
+	ixAppendPageCounter = appendPageCount;
+	return 0;
 }
 
