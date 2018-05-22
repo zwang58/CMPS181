@@ -43,7 +43,21 @@ RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
 
 RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
-    return -1;
+    if (ixfileHandle.fh ->getNumberOfPages() == 0) {
+	struct nodeHeader header;
+        char *page = (char*)calloc(pageSize, sizeof(char));
+	header.left = noPage;
+        header.right = noPage;    
+        header.leaf = 1;
+        header.pageNum = rootPage;
+        header.freeSpace = sizeof(struct nodeHeader);
+            
+        memcpy(page, &header, sizeof(struct nodeHeader));        
+        ixfileHandle.fh->appendPage(page);
+        free(page);
+    }   
+    //
+    //
 }
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
