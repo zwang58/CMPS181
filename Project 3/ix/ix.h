@@ -6,10 +6,35 @@
 
 #include "../rbf/rbfm.h"
 
-# define IX_EOF (-1)  // end of the index scan
+# define rootPage(0)  //  
+# define noPage(0xffff)
+# define IX_EOF(-1)  // end of the index scan
 
 class IX_ScanIterator;
 class IXFileHandle;
+
+struct nodeHeader {
+    uint16_t left;
+    uint16_t right;
+    uint16_t leaf;
+    uint16_t pageNum;
+    uint16_t freeSpace;
+};
+
+struct leafEntry {
+    char key[pageSize]; 
+    RID rid;
+    uint16_t sizeOnPage;
+    Attribute attribute;
+};
+
+struct interiorEntry {
+    char key[pageSize];
+    uint16_t left;
+    uint16_t right;
+    Attribute attribute;   
+};
+
 
 class IndexManager {
 
