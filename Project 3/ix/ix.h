@@ -6,33 +6,31 @@
 
 #include "../rbf/rbfm.h"
 
-# define rootPage(0)  //  
+# define rootPage(0)  // declare the root page 
 # define noPage(0xffff)
 # define IX_EOF(-1)  // end of the index scan
 
 class IX_ScanIterator;
 class IXFileHandle;
 
-struct nodeHeader {
-    uint16_t left;
-    uint16_t right;
-    uint16_t leaf;
-    uint16_t pageNum;
-    uint16_t freeSpace;
+struct nodeHeader {     // the page format
+    uint16_t left;      // the left of this page
+    uint16_t right;     // the right of this page
+    uint16_t leaf;      // bolean value whether the current page is a leaf
+    uint16_t pageNum;     // # of the page
+    uint16_t freeSpace;    // the position of the 1st free space in a packed or unpacked page
 };
 
-struct leafEntry {
-    char key[pageSize]; 
+struct leafEntry {         // <key, rid>
+    char key[pageSize];  
     RID rid;
     uint16_t sizeOnPage;
-    Attribute attribute;
 };
 
-struct interiorEntry {
+struct interiorEntry {     // <key, pid>
     char key[pageSize];
-    uint16_t left;
-    uint16_t right;
-    Attribute attribute;   
+    uint16_t left;        // points to the page that is <= this key
+    uint16_t right;       // points to the page that is > this key
 };
 
 
