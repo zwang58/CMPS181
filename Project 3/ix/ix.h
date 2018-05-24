@@ -3,12 +3,16 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
 
 #include "../rbf/rbfm.h"
 
-# define rootPage(0)  // declare the root page 
-# define noPage(0xffff)
-# define IX_EOF(-1)  // end of the index scan
+#define ROOT_PAGE (0)  // declare the root page 
+#define NO_PAGE (0xffff)
+#define IX_EOF (-1)  // end of the index scan
+#define DELETED_ENTRY (0x8000)
 
 class IX_ScanIterator;
 class IXFileHandle;
@@ -16,21 +20,23 @@ class IXFileHandle;
 struct nodeHeader {     // the page format
     uint16_t left;      // the left of this page
     uint16_t right;     // the right of this page
-    uint16_t leaf;      // bolean value whether the current page is a leaf
+    bool leaf;      // bolean value whether the current page is a leaf
     uint16_t pageNum;     // # of the page
     uint16_t freeSpace;    // the position of the 1st free space in a packed or unpacked page
 };
 
 struct leafEntry {         // <key, rid>
-    char key[pageSize];  
+    char key[PAGE_SIZE];  
     RID rid;
     uint16_t sizeOnPage;
+	Attribute attribute;
 };
 
 struct interiorEntry {     // <key, pid>
-    char key[pageSize];
+    char key[PAGE_SIZE];
     uint16_t left;        // points to the page that is <= this key
     uint16_t right;       // points to the page that is > this key
+	Attribute attribute;
 };
 
 
@@ -68,6 +74,9 @@ class IndexManager {
 
         // Print the B+ tree in pre-order (in a JSON record format)
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+		RC isKeySmaller(const Attribute &attribute, const void* pageEntryKey, const void* key);
+        RC isKeyEqual(const Attribute &attribute, const void* pageEntryKey, const void* key);
+        RC keyCompare(const Attribute &attr, const void* pageKey, const void* lowKey, const void* highKey, bool lowInc, bool highInc);
 
     protected:
         IndexManager();
@@ -76,6 +85,14 @@ class IndexManager {
     private:
         static IndexManager *_index_manager;
 		static PagedFileManager *_pf_manager;
+		RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid, vector<uint16_t> pageStack);
+        RC insertToLeaf(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* const key, RID rid, vector<uint16_t> pageStack);
+        RC insertToInterior(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* key, uint16_t oldPage, uint16_t newPage, vector<uint16_t> pageStack); 
+        void print_rec(uint16_t depth, uint16_t pageNum, IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+        struct interiorEntry nextInteriorEntry(char* page, Attribute attribute, uint16_t &offset) const;
+        struct leafEntry nextLeafEntry(char* page, Attribute attribute, uint16_t &offset) const; 
+        uint16_t getSize(const Attribute &attribute, const void* key) const;
+		RC createNewRoot(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* key, uint16_t page2Num);
 };
 
 
