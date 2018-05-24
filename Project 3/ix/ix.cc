@@ -365,7 +365,7 @@ RC IndexManager::createNewRoot(IXFileHandle &ixfileHandle, const Attribute &attr
     free(oldRoot);
     free(page2);
     
-    return 0;
+    return SUCCESS;
 }
 
 interiorEntry IndexManager::nextInteriorEntry(char* page, Attribute attribute, uint16_t &offset) const {
@@ -548,6 +548,29 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
     return SUCCESS;
 }
 
+RC IndexManager::keyCompare(const Attribute &attr, const void* pageKey, const void* lowKey, const void* highKey, bool lowInc, bool highInc) {   
+    
+    if(lowKey != NULL) {
+    
+        if(isKeySmaller(attr, pageKey, lowKey))
+            return -1;
+
+        if(!lowInc && isKeyEqual(attr, pageKey, lowKey)) 
+            return -1;
+    }
+    
+    if(highKey != NULL) {
+
+        if(isKeySmaller(attr, highKey, pageKey))
+            return 1;
+
+        if(!highInc && isKeyEqual(attr, highKey, pageKey)) 
+            return 1;
+    }
+
+    return 0;
+}
+
 
 RC IndexManager::scan(IXFileHandle &ixfileHandle,
         const Attribute &attribute,
@@ -557,7 +580,49 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
         bool        	highKeyInclusive,
         IX_ScanIterator &ix_ScanIterator)
 {
-    return -1;
+
+	if (ixfileHandle.fh.getfd() == NULL || ixfileHandle.fh.getNumberOfPages() == 0)
+        return -1;
+
+	ix_ScanIterator.ixfileHandle = &ixfileHandle;
+	ix_ScanIterator.attribute = attribute;
+    ix_ScanIterator.lowKey = lowKey; 
+    ix_ScanIterator.highKey = highKey; 
+    
+    ix_ScanIterator.lowKeyInclusive = lowKeyInclusive;
+    ix_ScanIterator.highKeyInclusive = highKeyInclusive;
+
+    char* page = (char*)calloc(PAGE_SIZE, sizeof(char));
+    uint16_t curPage = ROOT_PAGE;
+    struct nodeHeader pageHeader;
+
+    while(true) {
+            
+        ixfileHandle.fh.readPage(curPage, page);
+        memcpy(&pageHeader, page, sizeof(struct nodeHeader));
+        uint16_t offset = sizeof(struct nodeHeader);    
+
+        struct interiorEntry entry;
+ 
+        if(pageHeader.leaf) {
+            break;
+        }
+
+        while (pageHeader.freeSpace > offset + sizeof(uint16_t)) {
+            entry = nextInteriorEntry(page, attribute, offset);
+            if (not isKeySmaller(attribute, entry.key, lowKey)) {
+                curPage = entry.left;
+                break;
+            } else {
+                curPage = entry.right;
+            }
+        }
+    }
+
+    ix_ScanIterator.pageOffset = sizeof(struct nodeHeader);
+    ix_ScanIterator.page = page;
+    
+    return SUCCESS;
 }
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
@@ -565,20 +630,50 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 
 IX_ScanIterator::IX_ScanIterator()
 {
+	_index_manager = IndexManager::instance();
 }
 
 IX_ScanIterator::~IX_ScanIterator()
 {
+	_index_manager = NULL;
 }
 
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
-    return -1;
+    struct nodeHeader pageHeader;
+    struct leafEntry entry;
+
+    while(true) {
+            
+        memcpy(&pageHeader, page, sizeof(struct nodeHeader));
+        while (pageHeader.freeSpace > pageOffset) {
+
+            entry = _index_manager->nextLeafEntry((char*) page, attribute, pageOffset);
+            int result = _index_manager->keyCompare(attribute, entry.key, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+            if (result == 0) {
+                memcpy(&rid, &entry.rid, sizeof(RID));
+                memcpy(key, entry.key, _index_manager->getSize(attribute, entry.key));
+                return SUCCESS;
+            } else if(result == 1) {
+                break;
+            }
+        }
+
+        if(pageHeader.right == NO_PAGE) {
+            break;
+        }
+
+        ixfileHandle->fh.readPage(pageHeader.right, page);
+        pageOffset = sizeof(struct nodeHeader);
+    }
+
+    return IX_EOF;
 }
 
 RC IX_ScanIterator::close()
 {
-    return -1;
+    free(page);
+    return SUCCESS;
 }
 
 

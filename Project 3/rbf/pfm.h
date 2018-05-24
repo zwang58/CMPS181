@@ -64,7 +64,7 @@ public:
     RC appendPage(const void *data);                                    // Append a specific page
     unsigned getNumberOfPages();                                        // Get the number of pages in the file
     RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);  // Put the current counter values into variables
-
+    FILE *getfd();
     // Let PagedFileManager access our private helper methods
     friend class PagedFileManager;
 
@@ -73,7 +73,7 @@ private:
 
     // Private helper methods
     void setfd(FILE *fd);
-    FILE *getfd();
+
 }; 
 
 #endif
