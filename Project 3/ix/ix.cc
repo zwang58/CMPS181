@@ -490,7 +490,62 @@ RC IndexManager::isKeyEqual(const Attribute &attribute, const void* pageEntryKey
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
-    return -1;
+    char* page = (char*)calloc(PAGE_SIZE, sizeof(char));
+    uint16_t curPage = ROOT_PAGE;
+    nodeHeader pageHeader;
+    uint16_t offset;
+
+    // find correct page
+    // note a certain key can only be on one page, never on multiple
+    while(true) {
+            
+        ixfileHandle.fh.readPage(curPage, page);
+        memcpy(&pageHeader, page, sizeof( nodeHeader));
+        offset = sizeof( nodeHeader);    
+ 
+        if(pageHeader.leaf)
+            break;
+
+         interiorEntry entry;
+        while (pageHeader.freeSpace > offset + sizeof(uint16_t)) {
+            entry = nextInteriorEntry(page, attribute, offset);
+            if (not isKeySmaller(attribute, entry.key, key)) {
+                curPage = entry.left;
+                break;
+            } else {
+                curPage = entry.right;
+            }
+        }
+    }
+
+    leafEntry entry;
+    bool found = false;
+    if (offset == pageHeader.freeSpace) {
+        free(page);
+        return -1;
+    }
+
+    //look through the entries until the matching key is found or reaching freespace
+    while (pageHeader.freeSpace > offset) {
+        entry = nextLeafEntry(page, attribute, offset);      
+        if (isKeyEqual(attribute, entry.key, key)) {
+            found = true;
+            if (memcmp(&entry.rid, &rid, sizeof(RID)) == 0)
+                break;
+        } else if (found) {
+            free(page);
+            return -1;
+        }
+    }
+
+	//move the data between offset and freespace forward by sizeOnPage bytes
+    memmove(page + offset - entry.sizeOnPage, page + offset, pageHeader.freeSpace - offset);
+    pageHeader.freeSpace -= entry.sizeOnPage;
+    memcpy(page, &pageHeader, sizeof(nodeHeader));
+
+    ixfileHandle.fh.writePage(curPage, page);
+    free(page); 
+    return SUCCESS;
 }
 
 
