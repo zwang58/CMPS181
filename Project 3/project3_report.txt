@@ -1,0 +1,65 @@
+1. Basic information
+Team number (e.g., 01) : 16
+#1 Submitter ID : 1427309
+#1 Student Name : Zhixu Wang
+Other Team Members: Eduardo Chavez, Gaoyang Wang
+
+
+2. Index Entry Format
+- Show your index entry design (structure). 
+
+First, for interior pages, we build a structure "[Header Page + <pageID, key, pageID, key...>]".
+In this structure, key should be no more than PAGE_SIZE, which was declared in Project 1.
+In addtion, Header Page will be discussed in part 3 (page Format).
+
+Then, we declare the function "interiorEntry", which could point to the left node if that entry is less or equal than this key, and otherwise point to the right one. 
+However, we just write the keys and pageID of left & right node that we are retrieving and return the interior entry.
+The format is as shown below:
+
+struct interiorEntry {     // <key, pid>
+    char key[PAGE_SIZE];   
+    uint16_t left;        
+    uint16_t right;       
+	Attribute attribute;
+};
+
+
+Second, for leaf pages, we build a structure "[Header Page + <key, rid, key, rid...>]".
+rid is used to direct the data entries on the leaf using index upon Alternative (2).
+Similarly, the format is as shown below:
+
+struct leafEntry {         // <key, rid>
+    char key[PAGE_SIZE];  
+    RID rid;
+    uint16_t sizeOnPage;
+	Attribute attribute;
+};
+
+
+3. Page Format
+- Show your internal-page (non-leaf node) design.
+- Show your leaf-page (leaf node) design.
+
+We build a Header Page structure at the beginning of all pages, including both interior and leaf pages.
+The header page contains a page number, a Boolean value "leaf" (in order to determine whether it's a interior or leaf page), offset of free space in a page, and the page number of left and right node.
+
+struct nodeHeader {     
+    uint16_t left;      
+    uint16_t right;     
+    bool leaf;          
+    uint16_t pageNum;      
+    uint16_t freeSpace;    
+};
+
+
+4. Implementation Detail
+- Have you added your own source file (.cc or .h)?
+Not really.
+
+- Other implementation details:
+In ix.cc, we try to split the node when the page for that node is full. 
+Meanwhile, we make sure that we will split on keys only if they are different. 
+
+
+5. Other (optional)
+- Freely use this section to tell us about things that are related to the project 3, but not related to the other sections (optional).  For example, if you chose to do the extra credit (non-lazy deletion), please tell us here what you did.
