@@ -76,7 +76,6 @@ class IndexManager {
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
 		RC isKeySmaller(const Attribute &attribute, const void* pageEntryKey, const void* key);
         RC isKeyEqual(const Attribute &attribute, const void* pageEntryKey, const void* key);
-        RC keyCompare(const Attribute &attr, const void* pageKey, const void* lowKey, const void* highKey, bool lowInc, bool highInc);
 
     protected:
         IndexManager();

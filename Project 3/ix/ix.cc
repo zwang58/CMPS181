@@ -410,29 +410,6 @@ uint16_t IndexManager::getSize(const Attribute &attribute, const void* key) cons
     
 }
 
-RC IndexManager::keyCompare(const Attribute &attr, const void* pageKey, const void* lowKey, const void* highKey, bool lowInc, bool highInc) {   
-    
-    if(lowKey != NULL) {
-    
-        if(isKeySmaller(attr, pageKey, lowKey))
-            return -1;
-
-        if(!lowInc && isKeyEqual(attr, pageKey, lowKey)) 
-            return -1;
-    }
-    
-    if(highKey != NULL) {
-
-        if(isKeySmaller(attr, highKey, pageKey))
-            return 1;
-
-        if(!highInc && isKeyEqual(attr, highKey, pageKey)) 
-            return 1;
-    }
-
-    return 0;
-}
-
 RC IndexManager::isKeySmaller(const Attribute &attribute, const void* pageEntryKey, const void* key) {   
 
     if(key == NULL) {
