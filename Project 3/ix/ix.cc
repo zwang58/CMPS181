@@ -627,23 +627,23 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
 
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
-    printBtree_rec(ixfileHandle, ROOT_PAGE, attribute);
+    printBtree_rec(ixfileHandle, attribute, ROOT_PAGE, 0);
     cout << "\n"; 
 }
 
 void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &attribute, uint16_t pageNum, uint16_t depth) const {
-    void* pageData = malloc(PAGE_SIZE);
-    ixfilefileHandle.fh.readPage(pageNum, pageData);
+    char* pageData = (char*)calloc(PAGE_SIZE, sizeof(char));;
+    ixfileHandle.fh.readPage(pageNum, pageData);
 
     struct nodeHeader node_header;
-    memcpy(&type, pageData, sizeof(struct nodeHeader));
+    memcpy(&node_header, pageData, sizeof(struct nodeHeader));
     
     if(node_header.leaf) {
         cout << string(depth*4, ' ') << "{\"keys\" [";
         uint16_t offset = sizeof(struct nodeHeader);
         struct leafEntry leaf_entry;
         for(;;) {
-            leaf_entry = nextLeafEntry(page, attribute, offset);
+            leaf_entry = nextLeafEntry(pageData, attribute, offset);
             printLeafNode(leaf_entry);
             if(node_header.freeSpace <= offset) break;
             cout << ", ";
@@ -651,7 +651,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &a
     }
     else { // internalNode
         cout << string(depth*4, ' ') << "{\"keys\": ]";
-        uint16_t offset = sizeof(struct(nodeHeader);
+        uint16_t offset = sizeof(struct nodeHeader);
         struct interiorEntry interior_entry;
         for(;;) {
             interior_entry = nextInteriorEntry(pageData, attribute, offset);
@@ -683,7 +683,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &a
 void IndexManager::printLeafNode(struct leafEntry leaf_entry) const {
     cout << '\"';
     printKey(leaf_entry.attribute, leaf_entry.key);
-    cout << ":[(" << leaf_entry.rid.pageNum << "," << entry.rid.slotNum << ")]";
+    cout << ":[(" << leaf_entry.rid.pageNum << "," << leaf_entry.rid.slotNum << ")]";
     cout << '\"';
 
 }
