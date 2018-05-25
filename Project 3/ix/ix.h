@@ -9,7 +9,7 @@
 
 #include "../rbf/rbfm.h"
 
-#define ROOT_PAGE (0)  // declare the root page 
+#define ROOT_PAGE (0)  // (default root_page number) declare the root page 
 #define NO_PAGE (0xffff)
 #define IX_EOF (-1)  // end of the index scan
 #define DELETED_ENTRY (0x8000)
@@ -89,6 +89,9 @@ class IndexManager {
 		RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid, vector<uint16_t> pageStack);
         RC insertToLeaf(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* const key, RID rid, vector<uint16_t> pageStack);
         RC insertToInterior(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* key, uint16_t oldPage, uint16_t newPage, vector<uint16_t> pageStack); 
+        void printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &attribute, uint16_t pageNum, uint16_t depth) const;
+        void printLeafNode(struct leafEntry leaf_entry) const;
+        void printKey(const Attribute &attribute, const void* key) const;
         struct interiorEntry nextInteriorEntry(char* page, Attribute attribute, uint16_t &offset) const;
         struct leafEntry nextLeafEntry(char* page, Attribute attribute, uint16_t &offset) const; 
         uint16_t getSize(const Attribute &attribute, const void* key) const;

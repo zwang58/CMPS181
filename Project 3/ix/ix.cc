@@ -625,7 +625,88 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
     return SUCCESS;
 }
 
+
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
+    printBtree_rec(ixfileHandle, ROOT_PAGE, attribute);
+    cout << "\n"; 
+}
+
+void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &attribute, uint16_t pageNum, uint16_t depth) const {
+    void* pageData = malloc(PAGE_SIZE);
+    ixfilefileHandle.fh.readPage(pageNum, pageData);
+
+    struct nodeHeader node_header;
+    memcpy(&type, pageData, sizeof(struct nodeHeader));
+    
+    if(node_header.leaf) {
+        cout << string(depth*4, ' ') << "{\"keys\" [";
+        uint16_t offset = sizeof(struct nodeHeader);
+        struct leafEntry leaf_entry;
+        for(;;) {
+            leaf_entry = nextLeafEntry(page, attribute, offset);
+            printLeafNode(leaf_entry);
+            if(node_header.freeSpace <= offset) break;
+            cout << ", ";
+        }
+    }
+    else { // internalNode
+        cout << string(depth*4, ' ') << "{\"keys\": ]";
+        uint16_t offset = sizeof(struct(nodeHeader);
+        struct interiorEntry interior_entry;
+        for(;;) {
+            interior_entry = nextInteriorEntry(pageData, attribute, offset);
+            cout << "\"";
+            printKey(interior_entry.attribute, interior_entry.key);
+            cout << "\"";
+            if(offset + sizeof(uint16_t) >= node_header.freeSpace) break;
+            cout << ", ";
+        }
+        
+        cout << "],\n"
+             << string(depth*4, ' ') << " \"children\" [\n";
+        offset = sizeof(struct nodeHeader);
+        
+        memcpy(&interior_entry.right, pageData + offset, sizeof(uint16_t));
+        
+        while(sizeof(uint16_t) + offset < node_header.freeSpace) {
+            interior_entry = nextInteriorEntry(pageData, attribute, offset);
+            printBtree_rec(ixfileHandle, attribute, interior_entry.left, ++depth);
+            cout << ",\n";
+        }
+        printBtree_rec(ixfileHandle, attribute, interior_entry.right, ++depth);
+        cout << "\n" << string(depth*4, ' ') << "]}";
+    }
+    
+    free(pageData);
+} 
+
+void IndexManager::printLeafNode(struct leafEntry leaf_entry) const {
+    cout << '\"';
+    printKey(leaf_entry.attribute, leaf_entry.key);
+    cout << ":[(" << leaf_entry.rid.pageNum << "," << entry.rid.slotNum << ")]";
+    cout << '\"';
+
+}
+
+void IndexManager::printKey(const Attribute &attribute, const void* key) const {
+    if (attribute.type == TypeInt) {
+        int num;
+        memcpy(&num, key, sizeof(int));
+        cout << num;
+    }
+    else if (attribute.type == TypeReal) {
+        float num;
+        memcpy(&num, key, sizeof(float));
+        cout << num;
+    }
+    else {
+        int len;
+        memcpy(&len, key, sizeof(int));
+        char string[len + 1];
+        memcpy(string, (char*)key + 4, len);
+        string[len] = 0;
+        cout << string;
+    }
 }
 
 IX_ScanIterator::IX_ScanIterator()
