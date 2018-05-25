@@ -640,7 +640,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &a
     memcpy(&node_header, pageData, sizeof(struct nodeHeader));
     
     if(node_header.leaf) {
-        cout << string(depth*4, ' ') << "{\"keys\" [";
+        cout << string(depth*4, ' ') << "{\"key\" [";
         uint16_t offset = sizeof(struct nodeHeader);
         struct leafEntry leaf_entry;
         for(;;) {
@@ -651,7 +651,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &a
         }
     }
     else { // internalNode
-        cout << string(depth*4, ' ') << "{\"keys\": ]";
+        cout << string(depth*4, ' ') << "{\"key\": ]";
         uint16_t offset = sizeof(struct nodeHeader);
         struct interiorEntry interior_entry;
         for(;;) {
