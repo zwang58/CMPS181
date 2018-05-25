@@ -89,7 +89,6 @@ class IndexManager {
 		RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid, vector<uint16_t> pageStack);
         RC insertToLeaf(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* const key, RID rid, vector<uint16_t> pageStack);
         RC insertToInterior(IXFileHandle &ixfileHandle, const Attribute &attribute, const void* key, uint16_t oldPage, uint16_t newPage, vector<uint16_t> pageStack); 
-        void print_rec(uint16_t depth, uint16_t pageNum, IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         struct interiorEntry nextInteriorEntry(char* page, Attribute attribute, uint16_t &offset) const;
         struct leafEntry nextLeafEntry(char* page, Attribute attribute, uint16_t &offset) const; 
         uint16_t getSize(const Attribute &attribute, const void* key) const;
