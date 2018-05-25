@@ -627,8 +627,9 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
 
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
+    cout << "\n{\n";
     printBtree_rec(ixfileHandle, attribute, ROOT_PAGE, 0);
-    cout << "\n"; 
+    cout << "\n}\n"; 
 }
 
 void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, const Attribute &attribute, uint16_t pageNum, uint16_t depth) const {
