@@ -124,6 +124,7 @@ class IndexManager {
 
         // Print the B+ tree in pre-order (in a JSON record format)
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+		friend class RelationManager;
         friend class IX_ScanIterator;
 
     protected:
@@ -228,6 +229,7 @@ class IXFileHandle {
     RC appendPage(const void *data);
 
     friend class IndexManager;
+	
 	private:
         FileHandle fh;
 
@@ -248,7 +250,10 @@ class IX_ScanIterator {
         // Terminate index scan
         RC close();
 
+		friend class RelationManager;
+		friend class RM_IndexScanIterator;
         friend class IndexManager;
+
     private:
         IXFileHandle *fileHandle;
         Attribute attr;

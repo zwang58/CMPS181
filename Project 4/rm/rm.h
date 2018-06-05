@@ -6,10 +6,12 @@
 #include <vector>
 
 #include "../rbf/rbfm.h"
+#include "../ix/ix.h"
 
 using namespace std;
 
 #define TABLE_FILE_EXTENSION ".t"
+#define INDEX_FILE_EXTENSION ".i"
 
 #define TABLES_TABLE_NAME           "Tables"
 #define TABLES_TABLE_ID             1
@@ -41,10 +43,25 @@ using namespace std;
 // 1 null byte, 4 integer fields and a varchar
 #define COLUMNS_RECORD_DATA_SIZE 1 + 5 * INT_SIZE + COLUMNS_COL_COLUMN_NAME_SIZE
 
+//--------------Indexes Table Info---------------------//
+
+#define INDEXES_TABLE_NAME           "Indexes"
+#define INDEXES_TABLE_ID             3
+
+#define INDEXES_COL_TABLE_ID         "table-id"
+#define INDEXES_COL_COLUMN_NAME      "column-name"
+#define INDEXES_COL_COLUMN_NAME_SIZE 50
+
+#define INDEXES_RECORD_DATA_SIZE 1 + 2 * INT_SIZE + INDEXES_COL_COLUMN_NAME_SIZE
+
+//-----------------------------------------------------//
+
+
 # define RM_EOF (-1)  // end of a scan operator
 
 #define RM_CANNOT_MOD_SYS_TBL 1
 #define RM_NULL_COLUMN        2
+#define RM_INDEX_EXISTS       3
 
 typedef struct IndexedAttr
 {
@@ -66,6 +83,21 @@ public:
 private:
   RBFM_ScanIterator rbfm_iter;
   FileHandle fileHandle;
+};
+
+
+// RM_IndexScanIterator is an iterator to go through index entries
+class RM_IndexScanIterator {
+ public:
+  friend class RelationManager;
+  RM_IndexScanIterator() {};  	// Constructor
+  ~RM_IndexScanIterator() {}; 	// Destructor
+
+  // "key" follows the same format as in IndexManager::insertEntry()
+  RC getNextEntry(RID &rid, void *key);  	// Get next matching entry
+  RC close();             			// Terminate index scan
+ private:
+  IX_ScanIterator ix_si;
 };
 
 
@@ -107,6 +139,19 @@ public:
       const void *value,                    // used in the comparison
       const vector<string> &attributeNames, // a list of projected attributes
       RM_ScanIterator &rm_ScanIterator);
+	  
+  RC createIndex(const string &tableName, const string &attributeName);
+
+  RC destroyIndex(const string &tableName, const string &attributeName);
+
+  // indexScan returns an iterator to allow the caller to go through qualified entries in index
+  RC indexScan(const string &tableName,
+                        const string &attributeName,
+                        const void *lowKey,
+                        const void *highKey,
+                        bool lowKeyInclusive,
+                        bool highKeyInclusive,
+                        RM_IndexScanIterator &rm_IndexScanIterator);
 
 
 protected:
@@ -117,23 +162,29 @@ private:
   static RelationManager *_rm;
   const vector<Attribute> tableDescriptor;
   const vector<Attribute> columnDescriptor;
+  const vector<Attribute> indexDescriptor;
 
   // Convert tableName to file name (append extension)
   static string getFileName(const char *tableName);
   static string getFileName(const string &tableName);
+  static string getIndexFileName(const string &tableName, const char *indexName);
+  static string getIndexFileName(const string &tableName, const string &indexName);
 
   // Create recordDescriptor for Table/Column tables
   static vector<Attribute> createTableDescriptor();
   static vector<Attribute> createColumnDescriptor();
+  static vector<Attribute> createIndexDescriptor();
 
   // Prepare an entry for the Table/Column table
   void prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data);
   void prepareColumnsRecordData(int32_t id, int32_t pos, Attribute attr, void *data);
+  void prepareIndexesRecordData(int32_t id, const string &attributeName, void *data);
 
   // Given a table ID and recordDescriptor, creates entries in Column table
   RC insertColumns(int32_t id, const vector<Attribute> &recordDescriptor);
   // Given table ID, system flag, and table name, creates entry in Table table
   RC insertTable(int32_t id, int32_t system, const string &tableName);
+  RC insertIndex(int32_t id, const string &attributeName);
 
   // Get next table ID for creating table
   RC getNextTableID(int32_t &table_id);
