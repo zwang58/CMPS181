@@ -4,7 +4,7 @@
 
 #include <string>
 #include <vector>
-
+#include <math.h>
 #include "../rbf/rbfm.h"
 #include "../ix/ix.h"
 
@@ -12,6 +12,9 @@ using namespace std;
 
 #define TABLE_FILE_EXTENSION ".t"
 #define INDEX_FILE_EXTENSION ".i"
+
+#define INSERT_INDEX 0
+#define DELETE_INDEX 1
 
 #define TABLES_TABLE_NAME           "Tables"
 #define TABLES_TABLE_ID             1
@@ -122,6 +125,8 @@ public:
   RC deleteTuple(const string &tableName, const RID &rid);
 
   RC updateTuple(const string &tableName, const void *data, const RID &rid);
+
+  RC AlterIndexTree(const string& tableName, const vector<Attribute> recordDescriptor, const void* data, const RID& rid, int mode);
 
   RC readTuple(const string &tableName, const RID &rid, void *data);
 

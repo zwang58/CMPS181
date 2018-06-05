@@ -318,6 +318,10 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
     // Let rbfm do all the work
     rc = rbfm->insertRecord(fileHandle, recordDescriptor, data, rid);
     rbfm->closeFile(fileHandle);
+    if(rc) return rc;
+
+    rc = AlterIndexTree(tableName, recordDescriptor, data, rid, INSERT_INDEX);
+    if(rc) return rc;
 
     return rc;
 }
@@ -346,6 +350,13 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
     if (rc)
         return rc;
+
+    void* tmpData = malloc(PAGE_SIZE);
+    rc = readTuple(tableName, rid, tmpData);
+    if(rc) return rc;
+
+    rc = AlterIndexTree(tableName, recordDescriptor, tmpData, rid, DELETE_INDEX);
+    if(rc) return rc;
 
     // Let rbfm do all the work
     rc = rbfm->deleteRecord(fileHandle, recordDescriptor, rid);
@@ -378,6 +389,16 @@ RC RelationManager::updateTuple(const string &tableName, const void *data, const
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
     if (rc)
         return rc;
+
+    void* tmpData = malloc(PAGE_SIZE);
+    rc = readTuple(tableName, rid, tmpData);
+    if(rc) return rc;
+
+    rc = AlterIndexTree(tableName, recordDescriptor, tmpData, rid, DELETE_INDEX);
+    if(rc) return rc;
+
+    rc = AlterIndexTree(tableName, recordDescriptor, data, rid, INSERT_INDEX);
+    if(rc) return rc;
 
     // Let rbfm do all the work
     rc = rbfm->updateRecord(fileHandle, recordDescriptor, data, rid);
@@ -941,6 +962,113 @@ RC RM_ScanIterator::close()
     return SUCCESS;
 }
 
+RC RelationManager::AlterIndexTree(const string& tableName, const vector<Attribute> recordDescriptor, const void* data, const RID& rid, int mode){
+	
+	//initiate returned attribute, table id (to be matched in INDEXES table) and filehandle for the Scan iterator
+	RC rc;	
+	vector<string> targetAttr;
+	targetAttr.push_back(INDEXES_COL_COLUMN_NAME);
+
+	int32_t tid;
+	if((rc = getTableID(tableName, tid)) != SUCCESS) return rc;
+	void *tid_val = &tid;
+
+	FileHandle fh;
+	RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+
+	if((rc = rbfm->openFile(getFileName(tableName), fh)) != SUCCESS) return rc;
+
+	RBFM_ScanIterator rbfm_si;
+	rc = rbfm->scan(fh, indexDescriptor, INDEXES_COL_TABLE_ID, EQ_OP, tid_val, targetAttr, rbfm_si);
+	if(rc) return rc;
+
+	//List of attributes that have established indexes on this table
+	vector<string> attrList;
+	void* tmpData = malloc(INDEXES_RECORD_DATA_SIZE);
+	RID tmpRID;
+
+	while( (rc = rbfm_si.getNextRecord(tmpRID, tmpData)) == SUCCESS){
+
+		//skip the null byte and get column name size
+		int32_t fieldSize;
+		memcpy(&fieldSize, (char*) tmpData + 1, VARCHAR_LENGTH_SIZE);
+
+		char fieldValue[fieldSize + 1];
+		fieldValue[fieldSize] = '\0';
+		memcpy(fieldValue, (char*) tmpData + 1 + VARCHAR_LENGTH_SIZE, fieldSize);
+		attrList.push_back(string(fieldValue));
+	}
+
+	free(tmpData);
+	rbfm_si.close();
+	rbfm->closeFile(fh);
+
+	vector<Attribute> attrWithIndex;
+	for(unsigned i = 0; i < recordDescriptor.size(); i++){
+		for(unsigned j = 0; j < attrList.size(); j++){
+			if(recordDescriptor[i].name == attrList[j])
+				attrWithIndex.push_back(recordDescriptor[i]);
+		}
+	}
+
+	IndexManager* im = IndexManager::instance();
+	IXFileHandle ixfh;
+	void* value = malloc(PAGE_SIZE);
+
+
+	//for each attribute with an index tree, get this tuple's attribute value to update Btree
+	for(auto& attr: attrWithIndex){
+
+		bool valueFound = false;
+	    int offset = ceil(recordDescriptor.size() / 8.0);
+		for (size_t i = 0; i < recordDescriptor.size(); i++) {
+			//if null bit is target attribute return error, else go to next attribute
+		    char target = *((char*)data + i/8);
+		    if (target & (1<<(7-i%8))){
+		    	if(attr.name == recordDescriptor[i].name)
+		    		return -1;
+		    	else continue;
+		    }
+
+		    int size;
+		    if (recordDescriptor[i].type == TypeVarChar) {
+		        memcpy(&size, (char*)data + offset, VARCHAR_LENGTH_SIZE);
+		        size += VARCHAR_LENGTH_SIZE;
+		    }else{
+		    	size = INT_SIZE;
+		    }
+
+		    if (attr.name == recordDescriptor[i].name){
+		        memcpy(value, (char*)data + offset, size); 
+		        valueFound = true;
+		        break;
+		    }
+		    offset += size;
+	    }
+	    if(!valueFound) return -1;
+
+
+		rc = im->openFile(getIndexFileName(tableName, attr.name), ixfh);
+		if(rc) return rc;
+
+		switch(mode){
+			case INSERT_INDEX:{
+				rc = im->insertEntry(ixfh, attr, value, rid);
+				break;
+			}
+			case DELETE_INDEX:{
+				rc = im->deleteEntry(ixfh, attr, value, rid);
+				break;
+			}
+			default: break;
+		}
+		im->closeFile(ixfh);
+		if(rc) return rc;
+	}
+
+	return SUCCESS;
+}
+
 
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {    
@@ -1010,7 +1138,6 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 	//create new index file and generate indexes
     rc = im->createFile(getIndexFileName(tableName, attributeName));
     if (rc) return rc;
-
     rc = im->openFile(getIndexFileName(tableName, attributeName), ixfileHandle);
     if (rc) return rc;
 
@@ -1020,12 +1147,12 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     targetAttr.clear();
     targetAttr.push_back(attributeName);
 
-	//scan through all record entries with non-null target field, add construct index for each
+	//scan through all record entries with non-null target field, construct index for each
     rc = rbfm->scan(fh, recordDescriptor, attributeName, NO_OP, NULL, targetAttr, rbfm_si);
 
-	int fieldSize = recordDescriptor[attriIndex].length;
 	//initiate data to contain 1 null byte and field value
-    data = malloc(1 + fieldSize);
+    data = malloc(1 + recordDescriptor[attriIndex].length);
+
     while ((rc = rbfm_si.getNextRecord(rid, data)) == SUCCESS)
     {
 		//null indicator should be all 0s when theres only one field
@@ -1034,7 +1161,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         if (nullByte) continue;
 
         rc = im->insertEntry(ixfileHandle, recordDescriptor[attriIndex], (char*) data + 1, rid);
-        if (rc) return -1;
+        if (rc) return rc;
     }
     
     if (rc != RBFM_EOF) return rc;
