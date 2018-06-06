@@ -1253,7 +1253,7 @@ RC RelationManager::indexScan(const string &tableName,
             attriIndex = i;
             break;
         }
-		if (i == recordDescriptor.size() -1) return -1;
+		if (i == recordDescriptor.size() -1) return RM_COLUMN_MISSING;
     }
 
     IndexManager *im = IndexManager::instance();
