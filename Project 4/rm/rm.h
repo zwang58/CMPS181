@@ -65,6 +65,7 @@ using namespace std;
 #define RM_CANNOT_MOD_SYS_TBL 1
 #define RM_NULL_COLUMN        2
 #define RM_INDEX_EXISTS       3
+#define RM_COLUMN_MISSING     4
 
 typedef struct IndexedAttr
 {

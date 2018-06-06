@@ -1015,18 +1015,20 @@ RC RelationManager::AlterIndexTree(const string& tableName, const vector<Attribu
 	IXFileHandle ixfh;
 	void* value = malloc(PAGE_SIZE);
 
-
 	//for each attribute with an index tree, get this tuple's attribute value to update Btree
 	for(auto& attr: attrWithIndex){
 
 		bool valueFound = false;
+		bool nullAttr = false;
 	    int offset = ceil(recordDescriptor.size() / 8.0);
 		for (size_t i = 0; i < recordDescriptor.size(); i++) {
-			//if null bit is target attribute return error, else go to next attribute
+			//if null bit is target attribute, skip to the next attribute
 		    char target = *((char*)data + i/8);
 		    if (target & (1<<(7-i%8))){
-		    	if(attr.name == recordDescriptor[i].name)
-		    		return -1;
+		    	if(attr.name == recordDescriptor[i].name){
+		    		nullAttr = true;
+		    		break;
+		    	}
 		    	else continue;
 		    }
 
@@ -1045,7 +1047,11 @@ RC RelationManager::AlterIndexTree(const string& tableName, const vector<Attribu
 		    }
 		    offset += size;
 	    }
-	    if(!valueFound) return -1;
+
+	    //if current attribute is null for this tuple, don't have to alter index.
+	    //but if index attribute name can't be found in tuple descriptor, report error
+	    if(nullAttr) continue;
+	    if(!valueFound) return RM_COLUMN_MISSING;
 
 
 		rc = im->openFile(getIndexFileName(tableName, attr.name), ixfh);
@@ -1170,7 +1176,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     rbfm_si.close();
     free(data);
 
-	//insert index entry into indexes table
+	//insert index entry into INDEXES table
 	rc = insertIndex(tableId, attributeName);
 	if(rc) return rc;	
 	
