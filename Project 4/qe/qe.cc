@@ -15,7 +15,7 @@ RC Iterator::getValue(const string attrName, vector<Attribute> attrs, void* data
     for (size_t i = 0; i < attrs.size(); i++) {
         char target = *((char*)data + i/8);
         if (target & (1<<(7 - i%8))) {
-            if(attrName == attrs[i].name) return 0;
+            if(attrName == attrs[i].name) return 1;
             else 
                 continue;
         }
@@ -32,7 +32,7 @@ RC Iterator::getValue(const string attrName, vector<Attribute> attrs, void* data
             return SUCCESS;
         offset += attrSize;
         }
-        return 0;
+        return 1;
 }
 
 RC Filter::getNextTuple(void* data){
