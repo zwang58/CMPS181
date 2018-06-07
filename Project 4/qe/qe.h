@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <math.h>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -43,7 +44,7 @@ class Iterator {
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
-        RC getValue(string attrName, vector<Attribute> attrs, void* data, void* attrValue);
+        RC getValue(string attrName, vector<Attribute> attrs, void* data, void* attrValue, int& attrSize);
 };
 
 
@@ -226,11 +227,15 @@ class Filter : public Iterator {
 class Project : public Iterator {
     // Projection operator
     public:
+        Iterator* iter;
+        vector<string> attrNames;
+        vector<Attribute> attrs;
+
         Project(Iterator *input,                    // Iterator of input R
-              const vector<string> &attrNames){};   // vector containing attribute names
+              const vector<string> &attrNames);   // vector containing attribute names
         ~Project(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
 };
