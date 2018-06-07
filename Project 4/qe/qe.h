@@ -43,6 +43,7 @@ class Iterator {
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
+        RC getValue(string attrName, vector<Attribute> attrs, void* data, void* attrValue);
 };
 
 
@@ -212,7 +213,7 @@ class Filter : public Iterator {
         RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
-        RC checkCondition(AttrType type, void* left, CompOp op, void* right);
+        bool checkCondition(AttrType type, void* left, CompOp op, void* right);
         //----------helpers-----------//
         bool checkCondition(int recordInt, CompOp compOp, const void *value);
         bool checkCondition(float recordReal, CompOp compOp, const void *value);

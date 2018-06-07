@@ -12,18 +12,25 @@ Filter::Filter(Iterator* input, const Condition &condition) {
 
 
 RC Filter::getNextTuple(void* data){
+	RC rc;
+	while((rc = iter->getNextTuple(data)) == SUCCESS){
+		//if no condition is specified, return any tuple found
+		if(condition.op == NO_OP) break;
 
-
-	return SUCCESS;
+		//otherwise retrieve the condition attribute value and verify if condition is met
+		if(getValue(condition.lhsAttr, attrs, data, attrValue))
+			continue;
+		if(checkCondition(condition.rhsValue.type, attrValue, condition.op, condition.rhsValue.data))
+			break;
+	}
+	return rc;
 }
 
 void Filter::getAttributes(vector<Attribute> &attrs) const{
-
-
-
+	attrs = this->attrs;
 }
 
-RC Filter::checkCondition(AttrType type, void* left, CompOp op, void* right) {            
+bool Filter::checkCondition(AttrType type, void* left, CompOp op, void* right) {            
     switch (type) {
 
         case TypeVarChar: {
@@ -37,7 +44,7 @@ RC Filter::checkCondition(AttrType type, void* left, CompOp op, void* right) {
 
         case TypeInt: return checkCondition(*(int*)left, op, right);
         case TypeReal: return checkCondition(*(float*)left, op, right);
-        default: return -1;
+        default: return false;
     }            
 };
 
