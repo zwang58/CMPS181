@@ -167,3 +167,84 @@ void Project::getAttributes(vector<Attribute> &attrs) const {
 		}
 	}
 }
+
+INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
+	outer = leftIn;
+	inner = rightIn;
+	this->condition = condition;
+	outerTuple = malloc(PAGE_SIZE);
+	outerValue = malloc(PAGE_SIZE); 
+	innerTuple = malloc(PAGE_SIZE);
+	outer->getAttributes(outerAttrs);
+	inner->getAttributes(innerAttrs);
+	nextOuter = true;
+
+	//not-equal matching has two scan phases: lesser than outerValue, and greater than outerValue
+	//starts with phase 1 
+	NEPhase = NE_LT;
+}
+
+RC INLJoin::getNextTuple(void *data){
+	int tmp;
+	RC rc;
+	while (true) {
+
+		//if running for the 1st time or done matching current outer tuple, fetch next outer tuple
+		if (nextOuter) {
+			if ((rc = outer->getNextTuple(outerTuple)) == SUCCESS){
+
+				//Upon failure to fetch the next outer value, try again in the next cycle
+				//otherwise initiate the inner iterator based on the outer value and condition
+				if (getValue(condition.lhsAttr, outerAttrs, outerTuple, outerValue, tmp) and condition.op != NO_OP) 
+					continue;
+				else {
+					switch (condition.op) {
+						case EQ_OP: inner->setIterator(outerValue, outerValue, true,  true ); break;
+						case LT_OP: inner->setIterator(NULL,	   outerValue, true,  false); break; 
+						case GT_OP: inner->setIterator(outerValue, NULL,	   false, true ); break;
+						case LE_OP: inner->setIterator(NULL	  ,    outerValue, true,  true ); break;
+						case GE_OP: inner->setIterator(outerValue, NULL,	   true,  true ); break; 
+						case NE_OP: inner->setIterator(NULL,	   outerValue, true,  false); NEPhase = NE_LT; break; 
+						case NO_OP: inner->setIterator(NULL,	   NULL,	   true,  true ); break; 
+						default: return -1;
+					}  
+					nextOuter = false;
+				}
+			}
+			//terminate the joining if we run out of outer tuples
+			else return rc;
+		}
+
+		//Upon running out of inner tuples, if it is in NE scan phase 1, proceed to phase 2 (greater than outerValue)
+		//otherwise proceed to the next outer tuple
+		if (inner->getNextTuple(innerTuple) == QE_EOF) {
+			if (condition.op == NE_OP and NEPhase == NE_LT) {
+				NEPhase = NE_GT;
+				inner->setIterator(outerValue, NULL, false, true); 
+			} else {
+				nextOuter = true;
+			}
+			continue;
+		} 
+
+		//neither outer or inner reaches EOF, break and combine tuple results
+		break;
+	}
+
+	return joinTuples(outerAttrs, outerTuple, innerAttrs, innerTuple, data);
+}
+
+RC INLJoin::joinTuples(vector<Attribute> outerAttrs, void* outerTuple, vector<Attribute> innerAttrs,
+	void* innerTuple, void* output){
+
+
+	return SUCCESS;
+}
+
+ void INLJoin::getAttributes(vector<Attribute> &attrs) const {
+	attrs.clear();
+	for (auto &attr : outerAttrs)
+		attrs.push_back(attr);
+	for (auto &attr : innerAttrs)
+		attrs.push_back(attr);
+}

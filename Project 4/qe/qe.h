@@ -13,6 +13,9 @@
 #include "../ix/ix.h"
 
 #define QE_EOF (-1)  // end of the index scan
+#define NE_LT 0
+#define NE_GT 1
+
 
 using namespace std;
 
@@ -244,15 +247,32 @@ class Project : public Iterator {
 class INLJoin : public Iterator {
     // Index nested-loop join operator
     public:
+        int NEPhase;
+        Iterator* outer;
+        IndexScan* inner;
+        Condition condition;
+        void* outerTuple; 
+        void* innerTuple; 
+        void* outerValue;
+        bool nextOuter;
+        vector<Attribute> outerAttrs;
+        vector<Attribute> innerAttrs;
+
         INLJoin(Iterator *leftIn,           // Iterator of input R
                IndexScan *rightIn,          // IndexScan Iterator of input S
                const Condition &condition   // Join condition
-        ){};
-        ~INLJoin(){};
+        );
+        ~INLJoin(){
+            free(outerTuple);
+            free(innerTuple);
+            free(outerValue);
+        };
 
-        RC getNextTuple(void *data){return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+        RC joinTuples(vector<Attribute> outerAttrs, void* outerTuple, 
+            vector<Attribute> innerAttrs, void* innerTuple, void* output);
 };
 
 
