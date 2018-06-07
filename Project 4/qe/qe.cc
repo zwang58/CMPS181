@@ -23,11 +23,11 @@ RC Iterator::getValue(const string attrName, vector<Attribute> attrs, void* data
         if (attrs[i].type == TypeVarChar) {
             memcpy(&attrSize, (char*)data + offset, sizeof(int));
             memcpy((char*)attrValue, &attrSize, sizeof(int));
-            memcpy((char*)value + sizeof(int), (char*)data + offset + sizeof(int), attrSize);
+            memcpy((char*)attrValue + sizeof(int), (char*)data + offset + sizeof(int), attrSize);
             attrSize += sizeof(int);
         }
         else 
-            memcpy(value, (char*)data + offset, sizeof(int));
+            memcpy(attrValue, (char*)data + offset, sizeof(int));
         if(attrName == attrs[i].name) 
             return SUCCESS;
         offset += attrSize;
@@ -191,7 +191,6 @@ void Project::getAttributes(vector<Attribute> &attrs) const {
 		}
 	}
 }
-<<<<<<< HEAD
 
 INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
 	outer = leftIn;
@@ -273,5 +272,3 @@ RC INLJoin::joinTuples(vector<Attribute> outerAttrs, void* outerTuple, vector<At
 	for (auto &attr : innerAttrs)
 		attrs.push_back(attr);
 }
-=======
->>>>>>> 5edd137d18d21ed806c221ca9176c07b91850a15
