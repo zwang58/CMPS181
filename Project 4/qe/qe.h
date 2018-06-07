@@ -2,6 +2,10 @@
 #define _qe_h_
 
 #include <vector>
+#include <string>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -193,14 +197,28 @@ class IndexScan : public Iterator
 class Filter : public Iterator {
     // Filter operator
     public:
+        Iterator* iter;
+        Condition condition;
+        vector<Attribute> attrs;
+        void* attrValue;
+
         Filter(Iterator *input,               // Iterator of input R
                const Condition &condition     // Selection condition
         );
-        ~Filter(){};
+        ~Filter(){
+            free(attrValue);
+        };
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+        RC checkCondition(AttrType type, void* left, CompOp op, void* right);
+        //----------helpers-----------//
+        bool checkCondition(int recordInt, CompOp compOp, const void *value);
+        bool checkCondition(float recordReal, CompOp compOp, const void *value);
+        bool checkCondition(char* recordString, CompOp compOp, const void *value);
+        //----------------------------//
+
 };
 
 
@@ -213,7 +231,7 @@ class Project : public Iterator {
 
         RC getNextTuple(void *data) {return QE_EOF;};
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
 };
 
 
