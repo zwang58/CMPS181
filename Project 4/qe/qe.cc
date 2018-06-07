@@ -10,6 +10,30 @@ Filter::Filter(Iterator* input, const Condition &condition) {
 	input->getAttributes(attrs);
 }
 
+RC Iterator::getValue(const string attrName, vector<Attribute> attrs, void* data, void* attrValue, int& attrSize) {
+    int offset = ceil(attrs.size() / 8.0);
+    for (size_t i = 0; i < attrs.size(); i++) {
+        char target = *((char*)data + i/8);
+        if (target & (1<<(7 - i%8))) {
+            if(attrName == attrs[i].name) return 0;
+            else 
+                continue;
+        }
+        attrSize = sizeof(int);
+        if (attrs[i].type == TypeVarChar) {
+            memcpy(&attrSize, (char*)data + offset, sizeof(int));
+            memcpy((char*)attrValue, &attrSize, sizeof(int));
+            memcpy((char*)value + sizeof(int), (char*)data + offset + sizeof(int), attrSize);
+            attrSize += sizeof(int);
+        }
+        else 
+            memcpy(value, (char*)data + offset, sizeof(int));
+        if(attrName == attrs[i].name) 
+            return SUCCESS;
+        offset += attrSize;
+        }
+        return 0;
+}
 
 RC Filter::getNextTuple(void* data){
 	RC rc;
@@ -167,6 +191,7 @@ void Project::getAttributes(vector<Attribute> &attrs) const {
 		}
 	}
 }
+<<<<<<< HEAD
 
 INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
 	outer = leftIn;
@@ -248,3 +273,5 @@ RC INLJoin::joinTuples(vector<Attribute> outerAttrs, void* outerTuple, vector<At
 	for (auto &attr : innerAttrs)
 		attrs.push_back(attr);
 }
+=======
+>>>>>>> 5edd137d18d21ed806c221ca9176c07b91850a15
