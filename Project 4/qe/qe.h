@@ -48,6 +48,7 @@ class Iterator {
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
         RC getValue(string attrName, vector<Attribute> attrs, void* data, void* attrValue, int& attrSize);
+        int getSize(vector<Attribute> attrs, void* data);
 };
 
 

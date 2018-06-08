@@ -10,6 +10,22 @@ Filter::Filter(Iterator* input, const Condition &condition) {
 	input->getAttributes(attrs);
 }
 
+int Iterator::getSize(vector<Attribute> attrs, void* data) {
+    int offset = ceil(attrs.size() / 8.0);
+    size_t i;
+    for (i = 0; i < attrs.size(); i++) {
+        char target = *((char*)data + i/8);
+        if (target & (1<<(7-i%8))) continue;
+        if (attrs[i].type == TypeVarChar) {
+            int size;
+            memcpy(&size, (char*)data + offset, sizeof(int));
+            offset += size;
+        }
+        offset += sizeof(int);
+    }
+    return offset;
+}
+
 RC Iterator::getValue(const string attrName, vector<Attribute> attrs, void* data, void* attrValue, int& attrSize) {
     int offset = ceil(attrs.size() / 8.0);
     for (size_t i = 0; i < attrs.size(); i++) {
@@ -259,10 +275,32 @@ RC INLJoin::getNextTuple(void *data){
 }
 
 RC INLJoin::joinTuples(vector<Attribute> outerAttrs, void* outerTuple, vector<Attribute> innerAttrs,
-	void* innerTuple, void* output){
-
-
-	return SUCCESS;
+	void* innerTuple, void* output) {
+        
+    int outerNullSize = ceil(outerAttrs.size() / 8.0);
+    int innerNullSize = ceil(innerAttrs.size() / 8.0);
+    int totNullSize   = ceil((outerAttrs.size() + innerAttrs.size()) / 8.0);
+    memcpy(output, outerTuple, outerNullSize);
+    
+    size_t i, j;
+    for (i = 0; i < innerAttrs.size(); i++) {
+        j = i + outerAttrs.size();
+        char* target = (char*)data + (j/8);
+        char* origin = *((char*)innerTuple + i/8);
+        if (origin & (1<<(7-i%8))) {
+            *target |= (1<<(7-j%8));
+        }
+        else {
+            *target &= ~(1<<(7-j%8));
+        }
+    } 
+    
+    int outerSize = getSize(outerAttrs, outerTuple) - outerNullSize;
+    int innerSize = getSize(innerAttrs, innerTuple) - innerNullSize;
+    memcpy((char*)output + totNullSize, (char*)outerTuple + outerNullSize, outerSize);
+    memcpy((char*)output + totNullSize + outerSize, (char*)innerTuple + innerNullSize, innerSize);
+	
+    return SUCCESS;
 }
 
  void INLJoin::getAttributes(vector<Attribute> &attrs) const {
