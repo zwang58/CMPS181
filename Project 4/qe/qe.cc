@@ -285,8 +285,8 @@ RC INLJoin::joinTuples(vector<Attribute> outerAttrs, void* outerTuple, vector<At
     size_t i, j;
     for (i = 0; i < innerAttrs.size(); i++) {
         j = i + outerAttrs.size();
-        char* target = (char*)data + (j/8);
-        char* origin = *((char*)innerTuple + i/8);
+        char* target = (char*)output + (j/8);
+        char origin = *((char*)innerTuple + i/8);
         if (origin & (1<<(7-i%8))) {
             *target |= (1<<(7-j%8));
         }
