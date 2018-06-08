@@ -1,7 +1,7 @@
 
 #ifndef _rm_h_
 #define _rm_h_
-
+#include <tuple>
 #include <string>
 #include <vector>
 #include <math.h>
@@ -72,6 +72,10 @@ typedef struct IndexedAttr
     int32_t pos;
     Attribute attr;
 } IndexedAttr;
+
+typedef tuple<string, int> IndexTuple;
+#define TupleColumn 0
+#define TupleIndex 1
 
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
@@ -196,6 +200,7 @@ private:
   RC getNextTableID(int32_t &table_id);
   // Get table ID of table with name tableName
   RC getTableID(const string &tableName, int32_t &tableID);
+  RC getValue(const string name, const vector<Attribute> &attrs, const void* data, void* value);
 
   RC isSystemTable(bool &system, const string &tableName);
 
