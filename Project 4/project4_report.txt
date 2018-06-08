@@ -1,0 +1,70 @@
+1. Basic information
+Team number (e.g., 01) : 
+#1 Student ID : 1427309
+#1 Student Name : Zhixu Wang
+#2 Student ID : 1634889
+#2 Student Name : Gaoyang Wang
+#3 Student ID : 1559699
+#3 Student Name : Eduardo Chavez
+
+
+
+2. Catalog information about Index
+- Show what catalog information you store for an index. 
+
+First, for catalog indexes schema 'createCatalog()', we store names of attributes and the tables where those attributes come, i.e. <table-id, column-name>.
+
+Second, insertTuple(), deleteTuple() and updateTuple() will call the new function INDEX_INSERT (insert the column value into the column's index file)
+or/and INDEX_DELETE (delete the column value from the column's index file) using <table name, rid, *data>.
+Here, printTuple() could print a tuple that has values for index columns and is passed to our utility method.
+We define INDEX_INSERT as 0 and define INDEX_DELETE as 1.
+
+Third, with table name and rid, we could scan the table for indexes and store those indexes. 
+scan() returns an iterator to allow the caller to go through the results one by one.
+indexScan() returns an iterator to allow the caller to go through qualified entries in index.
+
+Fourth, we create the record Descriptor for Table/Column tables and prepare an entry for them.
+
+Then, as long as we are given table ID and recordDescriptor, we are able to insert columns; 
+we can also insert tables or indexes once we have table ID, table name and system flag.
+
+
+
+3. Index Nested Loop Join
+- Describe how your Index Nested Loop Join works.
+
+We build two functions getNextTuple() and getAttributes(), using indexscan() and an iterator, to realize Index Nested Loop Join.
+
+getNextTuple() first traverses the outer loop. For any tuple in outer loop, it traverses all tuples in inner loop to find whether they are matched (equal) with each other.
+Thus, the iterator is set on outer loop while indexScan() is set for inner loop.
+If the projected attribute is null, we toggle null bit and move on to next attr;
+otherwise, we copy the attr value into data and fetch the next attr value.
+
+The pseudo code is shown below:
+for each tuple r in R:
+	Use Index on S
+	for each tuple s in S 
+		if r[i] == s[j]
+			append <r, s> to result
+
+getAttributes() just returns the attributes in attrs that overlap with the attrNames to be projected
+
+
+4. Implementation Detail
+- Have you added your own source file (.cc or .h)?
+No, we have not.
+
+- Have you implemented any optional features? Then, describe them here.
+- Other implementation details:
+
+We implement Project and Filter in qe.cc.
+
+For instance, in Project,
+constructor is used to assign arguments to field variables.    
+getNextTuple utilizes getValue() to retrieve data that matches the attrName. Then, it stores the data based on AttrType.
+getAttributes is used to fill its vector of attributes. INL Join traverses each individual element in a vector, and then compares it with all matching elements in the other vector.
+
+
+
+5. Other (optional)
+- Freely use this section to tell us about things that are related to the project 4, but not related to the other sections (optional)
